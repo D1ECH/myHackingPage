@@ -18,17 +18,17 @@ const {
 
 const image = typeof heroImage?.src === 'string' ? heroImage?.src : (heroImage?.src?.src ?? '')
 
-const shares = {
-  weibo: {
-    link: `http://service.weibo.com/share/share.php?url=${Astro.url}&title=${title}&pic=${image}`
-  },
-  x: {
-    link: `https://x.com/intent/tweet?text='${title}'&url='${Astro.url}'&via='${config.author}'`
-  },
-  bluesky: {
-    link: `https://bsky.app/intent/compose?text=${title}%0A${Astro.url}`
-  }
-} as const
+// const shares = {
+//   weibo: {
+//     link: `http://service.weibo.com/share/share.php?url=${Astro.url}&title=${title}&pic=${image}`
+//   },
+//   x: {
+//     link: `https://x.com/intent/tweet?text='${title}'&url='${Astro.url}'&via='${config.author}'`
+//   },
+//   bluesky: {
+//     link: `https://bsky.app/intent/compose?text=${title}%0A${Astro.url}`
+//   }
+// } as const
 ---
 
 <div
@@ -63,7 +63,7 @@ const shares = {
         </div>
       )
     }
-    <div class='flex gap-x-2 sm:flex-col'>
+    <!-- <div class='flex gap-x-2 sm:flex-col'>
       <span>Copyright</span>
       <a
         class='text-sm text-foreground max-sm:place-self-center'
@@ -72,7 +72,7 @@ const shares = {
       >
         CC BY-NC-SA 4.0
       </a>
-    </div>
+    </div> -->
   </div>
 
   {/* functions */}
@@ -90,7 +90,7 @@ const shares = {
       >
         <Icon class='size-5' name='qrcode' />
       </button>
-      {
+      <!-- {
         config.content.share.map((share) => (
           <a
             href={shares[share].link}
@@ -101,7 +101,7 @@ const shares = {
             <Icon class='size-5' name={share} />
           </a>
         ))
-      }
+      } -->
     </div>
     <QRCode
       class='absolute z-10 -mt-2 box-content max-h-0 max-w-44 overflow-hidden rounded-xl border bg-muted p-4 opacity-0 transition-all duration-300 ease-in-out'
@@ -109,7 +109,7 @@ const shares = {
   </div>
 </div>
 
-<div class='mx-6 rounded-b-xl border border-t-0 px-3 pb-1.5 pt-1 sm:mx-8 sm:px-4'>
+<!-- <div class='mx-6 rounded-b-xl border border-t-0 px-3 pb-1.5 pt-1 sm:mx-8 sm:px-4'>
   <a
     href='/projects#sponsorship'
     class='flex items-center justify-between text-muted-foreground no-underline'
@@ -118,7 +118,7 @@ const shares = {
     <span>Buy me a cup of coffee ☕.</span>
     <Icon class='box-content size-5 p-1' name='receive-money' />
   </a>
-</div>
+</div> -->
 
 <style>
   #qrcode-container.expanded {

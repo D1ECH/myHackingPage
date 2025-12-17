@@ -4,6 +4,7 @@ import AstroPureIntegration from 'astro-pure'
 import { defineConfig } from 'astro/config'
 import rehypeKatex from 'rehype-katex'
 import remarkMath from 'remark-math'
+import remarkGithubAlerts from 'remark-github-alerts'
 
 // Local integrations
 // Local rehype & remark plugins
@@ -67,7 +68,10 @@ export default defineConfig({
   },
   // Markdown Options
   markdown: {
-    remarkPlugins: [remarkMath],
+    remarkPlugins: [
+      remarkMath,
+      remarkGithubAlerts 
+    ],
     rehypePlugins: [
       [rehypeKatex, {}],
       rehypeHeadingIds,
