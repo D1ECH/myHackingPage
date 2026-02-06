@@ -13,10 +13,10 @@ export const ThemeConfigSchema = () =>
     /** Title for your website. Will be used in metadata and as browser tab title. */
     title: z
       .string()
-      .describe('Title for your website. Will be used in metadata and as browser tab title.'),
+      .describe('MyHackingPage'),
 
     /** Will be used in index page & copyright declaration */
-    author: z.string().describe('Will be used in index page & copyright declaration'),
+    author: z.string().describe('Diego González Rodríguez'),
 
     /** Description metadata for your website. Can be used in page metadata. */
     description: z
