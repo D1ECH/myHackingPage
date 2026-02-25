@@ -47,11 +47,11 @@ export const theme: ThemeUserConfig = {
   /** Configure the header of your site. */
   header: {
     menu: [
-      { title: 'About', link: '/about' },
-      { title: 'Blog', link: '/blog' },
-      { title: 'Projects', link: '/projects' },
-      { title: 'Docs', link: '/docs' }
-      //{ title: 'Links', link: '/links' }
+      { title: 'About', link: '/myHackingPage/about' },
+      { title: 'Blog', link: '/myHackingPage/blog' },
+      { title: 'Projects', link: '/myHackingPage/projects' },
+      { title: 'Docs', link: '/myHackingPage/docs' }
+      //{ title: 'Links', link: '/myHackingPage/links' }
     ]
   },
 
