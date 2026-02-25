@@ -17,6 +17,7 @@ const docsByCate = docsCollection.reduce((acc: { [key: string]: typeof docsColle
 }, {})
 
 const docCategories = {
+  oscp: 'OSCP',
   setup: 'Setup',
   integrations: 'Integrations',
   advanced: 'Advanced'
@@ -42,7 +43,7 @@ const { title = true, class: className, ...props } = Astro.props
               .sort((a, b) => a.data.order - b.data.order)
               .map((doc) => (
                 <li class='docs-item flex relative ms-2 px-3 py-1 text-foreground/75 transition-all rounded-2xl'>
-                  <a class='flex-1 hover:text-foreground' href={`/docs/${doc.id}`}>
+                  <a class='flex-1 hover:text-foreground' href={`/myHackingPage/docs/${doc.id}`}>
                     {doc.data.title}
                   </a>
                 </li>
