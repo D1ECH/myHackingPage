@@ -30,7 +30,9 @@ export default defineConfig({
   // base: '/astro-pure/',
   // trailingSlash: 'never',
   trailingSlash: 'ignore',
-
+  build: {
+      format: 'directory' 
+    },
   // Adapter
   // https://docs.astro.build/en/guides/deploy/
   // 1. Vercel (serverless)
