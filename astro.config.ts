@@ -29,10 +29,11 @@ export default defineConfig({
   // Deploy to a sub path; See https://astro-pure.js.org/docs/setup/deployment#platform-with-base-path
   // base: '/astro-pure/',
   // trailingSlash: 'never',
-  trailingSlash: 'ignore',
+  trailingSlash: 'always',
   build: {
       format: 'directory' 
     },
+  output: 'static',
   // Adapter
   // https://docs.astro.build/en/guides/deploy/
   // 1. Vercel (serverless)
