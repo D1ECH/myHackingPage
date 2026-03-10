@@ -116,7 +116,7 @@ export const addCopyButton = (timeout?: number): ShikiTransformer => {
               },
               [
                 h('use', {
-                  href: '/icons/code.svg#mingcute-clipboard-line'
+                  href: '/myHackingPage/icons/code.svg#mingcute-clipboard-line'
                 })
               ]
             )
@@ -129,7 +129,7 @@ export const addCopyButton = (timeout?: number): ShikiTransformer => {
               },
               [
                 h('use', {
-                  href: '/icons/code.svg#mingcute-file-check-line'
+                  href: '/myHackingPage/icons/code.svg#mingcute-file-check-line'
                 })
               ]
             )
