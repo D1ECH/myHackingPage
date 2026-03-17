@@ -49,7 +49,7 @@ const footerLink1 = footerConf.links?.filter(({ pos }) => pos === 1) || []
                     .filter(({ pos }) => pos === 2)
                     .map(({ title, link, style }) => (
                       <span>
-                        <a href={link} target='_blank' class={style}>
+                        <a href={`/myHackingPage${link}`} target='_blank' class={style}>
                           {title}
                         </a>
                       </span>

@@ -2,12 +2,18 @@
 import { socialLinks, type iconsType } from 'astro-pure/types'
 import { Icon } from 'astro-pure/user'
 
+
+const customIcons = import.meta.glob<{ default: string }>('/src/assets/icons/*.svg', {
+  query: '?raw',
+  eager: true
+})
+
 interface SubstatsItem {
   platform: string
   icon: (typeof socialLinks)[number]
   color?: string
   link?: string
-  text: string
+  text?: string
   api?: string
   count?: number
 }
@@ -36,7 +42,7 @@ async function fetchCount(item: SubstatsItem) {
 await Promise.all(stats.map(fetchCount))
 ---
 
-<div class='grid grid-cols-1 gap-3 rounded-xl border p-2 sm:grid-cols-2 sm:p-3'>
+<!-- <div class='grid grid-cols-1 gap-3 rounded-xl border p-2  sm:p-3'>
   {
     stats.map(({ link, platform, icon, color, count, text }) => (
       <a
@@ -56,18 +62,63 @@ await Promise.all(stats.map(fetchCount))
               <span class='text-sm font-normal'>{text}</span>
             </div>
           ) : (
-            'null'
+            ''
           )}
         </div>
       </a>
     ))
   }
+</div> -->
+
+<div class='grid grid-cols-1 gap-3 rounded-xl border p-2  sm:p-3'>
+  {
+    stats.map(({ link, platform, icon, color, count, text }) => {
+      // 2. Lógica para determinar si el icono es local o del tema
+      const customIconPath = `/src/assets/icons/${icon}.svg`
+      const rawSvg = customIcons[customIconPath]?.default
+
+      return (
+        <a
+          class='group text-muted-foreground no-underline'
+          href={link}
+          target='_blank'
+          rel='noopener noreferrer'
+        >
+        <div class='flex items-center gap-3 rounded-lg border border-transparent px-3 py-2 transition-all hover:border-border hover:bg-muted'>
+            {/* 3. Si existe el SVG local, lo renderizamos. Si no, usamos <Icon /> */}
+            {rawSvg ? (
+              <div 
+                style={`color: ${color}`} 
+                class="flex h-6 w-6 shrink-0 items-center justify-center [&>svg]:h-full [&>svg]:w-full" 
+                set:html={rawSvg} 
+              />
+            ) : (
+              icon && <div class="h-6 w-6 shrink-0"><Icon name={icon as iconsType} color={color} /></div>
+            )}
+            <div class='flex-1 text-foreground transition-colors group-hover:text-primary'>
+              {platform}
+            </div>
+            {count ? (
+              <div class='flex items-center gap-1.5'>
+                <samp>{count}</samp>
+                <span class='text-sm font-normal'>{text}</span>
+              </div>
+            ) : (
+              ''
+            )}
+          </div>
+        </a>
+      )
+    })
+  }
 </div>
-<div class='mt-2 text-right text-sm'>
+
+
+<!-- <div class='mt-2 text-right text-sm'>
   Display real-time; powered by <a
     class='text-muted-foreground'
     href='http://github.com/spencerwooo/substats'
     target='_blank'
     rel='noopener noreferrer'>Substats</a
   >
-</div>
+</div> -->

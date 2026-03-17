@@ -184,19 +184,19 @@ export const terms: CardListData = {
   list: [
     {
       title: 'Privacy Policy',
-      link: '/terms/privacy-policy'
+      link: '/myHackingPage/terms/privacy-policy'
     },
     {
       title: 'Terms and Conditions',
-      link: '/terms/terms-and-conditions'
+      link: '/myHackingPage/terms/terms-and-conditions'
     },
     {
       title: 'Copyright',
-      link: '/terms/copyright'
+      link: '/myHackingPage/terms/copyright'
     },
     {
       title: 'Disclaimer',
-      link: '/terms/disclaimer'
+      link: '/myHackingPage/terms/disclaimer'
     }
   ]
 }

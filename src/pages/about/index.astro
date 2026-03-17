@@ -5,23 +5,68 @@ import Substats from '@/components/about/Substats.astro'
 import ToolSection from '@/components/about/ToolSection.astro'
 
 const headings = [
-  { depth: 2, slug: 'introduction', text: 'Introduction' },
+  { depth: 2, slug: 'introduction', text: 'Introduction & Social Networks' },
   { depth: 2, slug: 'education', text: 'Education' },
   { depth: 2, slug: 'work_experience', text: 'Work Experience' },
   { depth: 2, slug: 'certifications', text: 'Certifications'},
   { depth: 2, slug: 'hobbies', text: 'Hobbies' },
   { depth: 2, slug: 'tools', text: 'Tools' },
-  { depth: 2, slug: 'social-networks', text: 'Social Networks' }
+  
 ]
 ---
 
 <PageLayout title='About' {headings}>
   <p>Developer / Designer / Cybersecurity </p>
-  <p>
+  <!-- <p>
     Apasionado por el hacking ético, los CTFs y la seguridad ofensiva. Comparto mis writeups,
     descubrimientos y proyectos personales sobre ciberseguridad. Siempre aprendiendo y rompiendo cosas
     (para luego arreglarlas mejor). <Spoiler>O a veces no arreglarlas...</Spoiler>
-  </p>
+  </p> -->
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start mb-12">
+    {/* COLUMNA IZQUIERDA: Introducción */}
+    <div>
+      <h2 id='about-me'>About Me</h2>
+      <p class="text-lg leading-relaxed">
+        Apasionado por el hacking ético, los CTFs y la seguridad ofensiva. Comparto mis writeups,
+        descubrimientos y proyectos personales sobre ciberseguridad. Siempre aprendiendo y rompiendo cosas
+        (para luego arreglarlas mejor). <Spoiler>O a veces no arreglarlas...</Spoiler>
+      </p>
+    </div>
+
+    {/* COLUMNA DERECHA: Título + Redes (Agrupados en un div) */}
+    <div>
+      <h2 id='social-networks'>Social Networks</h2>
+      <Substats
+        stats={[
+          {
+            platform: 'GitHub',
+            icon: 'github',
+            link: 'https://github.com/D1ECH',
+          },
+          {
+            platform: 'LinkedIn',
+            icon: 'linkedin-app-icon',
+            color: '#0077b5',
+            link: 'https://linkedin.com/in/diego-glez-rdguez',
+          },
+          {
+            platform: 'TryHackMe',
+            icon: 'tryhackme',
+            color: '#212c42',
+            link: 'https://tryhackme.com/p/Diech',
+          },
+          {
+            platform: 'HackTheBox',
+            icon: 'hackthebox',
+            color: '#9fe52f',
+            link: 'https://profile.hackthebox.com/profile/019cfce1-90e8-70bc-84c7-cbc66a41a502',
+          }
+        ]}
+      />
+    </div>
+  </div>
+
   <!-- <Button title='Sponsor Me' class='w-fit' href='/projects#sponsorship' variant='ahead' /> -->
 
   {/* general-talk */}
@@ -97,6 +142,7 @@ const headings = [
       <strong>OSCP (PEN-200)</strong> - Offsec  
       <em>(Feb 2026 – Present)</em>
     </li>
+  </ul>
 
   {/* tools */}
   <h2 id='tools'>Tools</h2>
@@ -194,7 +240,7 @@ const headings = [
   </ul>
 
 
-  {/* social-networks */}
+  <!-- {/* social-networks */}
   <h2 id='social-networks'>Social Networks</h2>
   <Substats
     stats={[
@@ -202,8 +248,24 @@ const headings = [
         platform: 'GitHub',
         icon: 'github',
         link: 'https://github.com/D1ECH',
-        text: 'followers',
-        api: 'github/cworld1'
+      },
+      {
+        platform: 'LinkedIn',
+        icon: 'linkedin-app-icon',
+        color: '#0077b5',
+        link: 'https://linkedin.com/in/diego-glez-rdguez',
+      },
+      {
+        platform: 'TryHackMe',
+        icon: 'tryhackme',
+        color: '#212c42',
+        link: 'https://tryhackme.com/p/Diech',
+      },
+      {
+        platform: 'HackTheBox',
+        icon: 'hackthebox',
+        color: '#9fe52f',
+        link: 'https://profile.hackthebox.com/profile/019cfce1-90e8-70bc-84c7-cbc66a41a502',
       }
       // {
       //   platform: 'Telegram',
@@ -230,7 +292,7 @@ const headings = [
       //   api: 'steamgames/76561199021278120'
       // }
     ]}
-  />
+  /> -->
 
   <!-- {/* gossips */}
   <h2 id='gossips'>Gossips</h2>
