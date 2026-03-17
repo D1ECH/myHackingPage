@@ -5,11 +5,11 @@ export const theme: ThemeUserConfig = {
   /** Title for your website. Will be used in metadata and as browser tab title. */
   title: 'MyHackingPage',
   /** Will be used in index page & copyright declaration */
-  author: 'Diego González Rodríguez',
+  author: 'D1ECH',
   /** Description metadata for your website. Can be used in page metadata. */
   description: 'Stay hungry, stay foolish',
   /** The default favicon for your site which should be a path to an image in the `public/` directory. */
-  favicon: '/favicon/favicon.ico',
+  favicon: '/favicon/terminal.ico',
   /** Specify the default language for this site. */
   locale: {
     lang: 'en-US',
@@ -118,7 +118,7 @@ export const integ: IntegrationUserConfig = {
       { name: 'Name', val: theme.title },
       { name: 'Desc', val: theme.description || 'Null' },
       { name: 'Link', val: 'https://astro-pure.js.org/' },
-      { name: 'Avatar', val: 'https://astro-pure.js.org/favicon/favicon.ico' }
+      { name: 'Avatar', val: 'https://astro-pure.js.org/favicon/terminal.ico' }
     ],
     // Cache avatars in `public/avatars/` to improve user experience.
     cacheAvatar: false
