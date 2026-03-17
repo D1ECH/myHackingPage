@@ -3,6 +3,7 @@ import { socialLinks, type iconsType } from 'astro-pure/types'
 import { Icon } from 'astro-pure/user'
 
 
+// Fuerza a TS a aceptar que buscamos archivos SVG
 const customIcons = import.meta.glob<{ default: string }>('/src/assets/icons/*.svg', {
   query: '?raw',
   eager: true
