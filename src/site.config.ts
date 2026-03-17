@@ -75,7 +75,7 @@ export const theme: ThemeUserConfig = {
       // Privacy Policy link
       {
         title: 'Site Policy',
-        link: '/terms/list',
+        link: '/myHackingPage/terms/list',
         pos: 2 // position set to 2 will be appended to copyright line
       }
     ],
