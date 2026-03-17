@@ -10,7 +10,7 @@ import { Icon } from '../user'
   <a
     class='z-30 text-xl font-semibold group-[.not-top]:ms-2 sm:group-[.not-top]:ms-3'
     style='transition:margin-inline 0.3s'
-    href={'/myHackingPage'}
+    href={import.meta.env.BASE_URL}
     aria-label='Brand'>{config.title}</a
   >
 
@@ -33,7 +33,7 @@ import { Icon } from '../user'
           ))
         }
         <div class='flex w-full grow flex-row justify-end gap-x-3 sm:w-fit sm:gap-x-5'>
-          <a class='px-1 py-2 transition-none sm:px-2' href={'/myHackingPage/search'} title='Search'>
+          <a class='px-1 py-2 transition-none sm:px-2' href={`${import.meta.env.BASE_URL}/search`} title='Search'>
             <span class='sr-only'>Search</span>
             <Icon name='search' class='size-5' />
           </a>
