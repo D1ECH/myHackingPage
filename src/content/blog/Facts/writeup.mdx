@@ -1,0 +1,129 @@
+---
+title: 'Facts Writeup - HackTheBox'
+publishDate: '2026-03-20'
+#updatedDate: '2025-07-10'
+description: 'Writeup del laboratorio Facts de HackTheBox'
+tags:
+  - Writeup
+  - HackTheBox
+  - Hacking
+  - Linux
+language: 'Spanish'
+draft: false
+---
+
+
+nmaps
+
+![Pasted_image_20260222154656.png](Pasted_image_20260222154656.png)
+![Pasted_image_20260222154727.png](Pasted_image_20260222154727.png)
+![Pasted_image_20260222154709.png](Pasted_image_20260222154709.png)
+
+la web:
+![Pasted_image_20260222155712.png](Pasted_image_20260222155712.png)
+![Pasted_image_20260222155723.png](Pasted_image_20260222155723.png)
+
+el source code parece muy normal, podemos sacar algunas rutas pero poco más:
+![Pasted_image_20260222164901.png](Pasted_image_20260222164901.png)
+
+gobuster --> han salido muchas rutas y archivos curiosos, vamos a ir mirando uno a uno:
+![Pasted_image_20260222165808.png](Pasted_image_20260222165808.png)
+
+- robots
+	![Pasted_image_20260222165553.png](Pasted_image_20260222165553.png)
+- sitemap:
+	![Pasted_image_20260222165649.png](Pasted_image_20260222165649.png)
+- 
+interesante lo de admin, será un login y en función de cómo se gestione puede ser curioso de toquetear:
+![Pasted_image_20260222165309.png](Pasted_image_20260222165309.png)
+credenciales básicos no funcionan y no parece revelar información como si el usuario ya existe o no
+En el _forgot password_ pide un mail que debe estar previo registrado así que tampoco es útil.
+Creamos un usuario y accedemos a ver qué hay por detrás:
+![Pasted_image_20260222165423.png](Pasted_image_20260222165423.png)
+![Pasted_image_20260222165452.png](Pasted_image_20260222165452.png)
+buscando posibles vulns del propio cms lo que parece es que la versión no es vulnerable
+![Pasted_image_20260222165939.png](Pasted_image_20260222165939.png)
+
+continuamos revisando la página de admin, concretamente el perfil por si hubiera plugins, info de otros usuarios o podemos actualizar el role del mismo y upgradearlo
+![Pasted_image_20260222170110.png](Pasted_image_20260222170110.png)
+algo a destacar además es eso del ID, asignado y sin poder cambiarlo al 5, lo cual da que pensar que quizás existen 4 usuarios más que desconocemos
+a continuación se muestra la petición capturada con burpsuite de actualizar el nombre de usuario de 'test' a 'test1' --> vamos a probar a añadir el campo rol y asignarle admin a ver si funciona e investigaremos también la ruta a ver si desvelamos otros usuarios o podemos cambiar algo de otros o lo que sea.
+![Pasted_image_20260222170516.png](Pasted_image_20260222170516.png)
+Vale, el tema de añadir el campo rol a la petición no funciona, he probado también a cambiar método por ver si podía obtener otros usuarios y se ve que tampoco.
+He creado un nuevo usuario para ver si el ID cambiaba y realmente era determinante del número de usuarios existente:
+![Pasted_image_20260223165711.png](Pasted_image_20260223165711.png)
+por curiosidad busqué posibles vulnerabilidades sobre el CMS en la versión que tenemos y encontré lo siguiente --> https://medium.com/@iamkumarraj/mass-assignment-vulnerability-in-camaleon-cms-2-9-0-ajax-privilege-escalation-9a09c8253b52 --> https://github.com/CsuriBird/CVE-2025-2304/tree/main. La posibilidad de escalar privilegios por una vulnerabilidad de AJAX, lo cual tiene sentido puesto que en gobuster salían rutas relacionadas con ajax, así que vamos a probar:
+![Pasted_image_20260223165917.png](Pasted_image_20260223165917.png)
+![Pasted_image_20260223170209.png](Pasted_image_20260223170209.png)
+![Pasted_image_20260223170239.png](Pasted_image_20260223170239.png)
+tal y como podemos comprobar el script ha funcionado para el usuario test1 que habíamos creado, ahora es administrador.
+ahora vamos a investigar un poco todo lo nuevo desbloqueado:
+![Pasted_image_20260223170426.png](Pasted_image_20260223170426.png)
+![Pasted_image_20260223170500.png](Pasted_image_20260223170500.png)
+![Pasted_image_20260223170515.png](Pasted_image_20260223170515.png)
+![Pasted_image_20260223173416.png](Pasted_image_20260223173416.png)
+![Pasted_image_20260223173426.png](Pasted_image_20260223173426.png)
+![Pasted_image_20260223173458.png](Pasted_image_20260223173458.png)
+no interpreta php, ni python que he probado también con otro archivo, así que viendo que la página tira de ruby vamos a probar con una reverse shell en este lenguaje:
+![Pasted_image_20260223173351.png](Pasted_image_20260223173351.png)
+![Pasted_image_20260223173637.png](Pasted_image_20260223173637.png)
+vale, he probado con awscli y a subir archivos con eso y pasa lo mismo que con el upload de la página de media del panel de admin
+https://github.com/vidura2/CVE-2024-46986 --> he probado esto y no parece funcionar tampoco 
+he probado también a añadir una reverse shell de ruby en el contenido de alguna página por si lo procesaba pero lo pilla como texto plano
+
+![Pasted_image_20260224131233.png](Pasted_image_20260224131233.png)
+![Pasted_image_20260224130823.png](Pasted_image_20260224130823.png)
+![Pasted_image_20260224130834.png](Pasted_image_20260224130834.png)
+![Pasted_image_20260224130916.png](Pasted_image_20260224130916.png)
+![Pasted_image_20260224130935.png](Pasted_image_20260224130935.png)
+![Pasted_image_20260224130942.png](Pasted_image_20260224130942.png)
+![Pasted_image_20260224131039.png](Pasted_image_20260224131039.png)
+![Pasted_image_20260224130757.png](Pasted_image_20260224130757.png)
+![Pasted_image_20260224131420.png](Pasted_image_20260224131420.png)
+![Pasted_image_20260224133955.png](Pasted_image_20260224133955.png)
+![Pasted_image_20260224134015.png](Pasted_image_20260224134015.png)
+
+
+retomando la máquina vamos de nuevo con el script que estábamos probando para ejecución de comandos en camaleon cms, que en teoría era para otra versión pero por si acaso:
+![Pasted_image_20260319174241.png](Pasted_image_20260319174241.png)
+no parece funcionar, así que vamos a seguir buscando posibles vulnerabilidades
+buscando en google bastante a fondo y admito que mirando un poco la solución puesto que lo que habíamos probado antes era lo que primero salía que era el CVE-2024-46986 y ya vimos que no funcionaba encontramos esto:
+![Pasted_image_20260319174505.png](Pasted_image_20260319174505.png)
+![Pasted_image_20260319174322.png](Pasted_image_20260319174322.png)
+con este script parece que podemos leer archivos del internos del servidor así que si sacamos el /etc/passwd podemos averiguar los usuarios que existen y probar entonces la clave por ssh.
+![Pasted_image_20260319174718.png](Pasted_image_20260319174718.png)
+descargamos entonces la clave, le asignamos los permisos necesarios y probamos con el primer usuario y efectivamente conseguimos la sesión ssh:
+![Pasted_image_20260319174755.png](Pasted_image_20260319174755.png)
+
+vale ahora donde está la flag y, ¿podemos verla? o tendremos que migrar de user?
+buscando un poco vemos que estaba en el home del otro user y podemos verla
+![Pasted_image_20260319180305.png](Pasted_image_20260319180305.png)
+
+ahora queda escalar privilegios y lo primero a probar es lo típico, podemos hacer algo de sudo o SUID???
+![Pasted_image_20260319180143.png](Pasted_image_20260319180143.png)
+parece que sí, cómo funciona este comando?
+![Pasted_image_20260319180418.png](Pasted_image_20260319180418.png)
+
+Al buscar información sobre este binario en GTFOBins, se observa que `facter` permite el uso del parámetro `--custom-dir`. Este parámetro hace que el programa cargue “custom facts”, es decir, scripts Ruby desde un directorio que le indiquemos. Lo importante aquí es que `facter` ejecuta el primer archivo `.rb` que encuentra en ese directorio.
+
+La idea de la explotación es bastante directa: si podemos controlar ese directorio, podemos introducir nuestro propio script malicioso en Ruby. Como `facter` se va a ejecutar con `sudo`, ese script también se ejecutará con privilegios de root.
+
+El proceso sería así:
+1. Crear un directorio controlado por nosotros (por ejemplo en `/tmp`).
+2. Dentro de ese directorio, crear un archivo Ruby con código que abra una shell.
+3. Ejecutar `facter` como root usando `sudo` y apuntando al directorio que hemos creado con `--custom-dir`.
+
+Un ejemplo sencillo de script Ruby sería:
+
+```ruby
+exec("/bin/bash")
+```
+
+Al ejecutar:
+
+```bash
+sudo facter --custom-dir /tmp
+```
+
+`facter` cargará el script desde ese directorio y lo ejecutará como root, lo que nos dará una shell con privilegios elevados.
+![Pasted_image_20260319180758.png](Pasted_image_20260319180758.png)
