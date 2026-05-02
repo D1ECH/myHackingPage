@@ -1,0 +1,178 @@
+---
+title: "CCTV Writeup - HackTheBox"
+publishDate: "2026-04-30"
+#updatedDate: '2025-07-10'
+description: 'Writeup del laboratorio CCTV de HackTheBox'
+tags:
+  - Writeup
+  - HackTheBox
+  - Offsec
+  - Hacking
+  - Linux
+language: 'Spanish'
+draft: true
+---
+
+#
+##
+
+nmap
+![Pasted_image_20260322124643.png](Pasted_image_20260322124643.png)
+![Pasted_image_20260322124712.png](Pasted_image_20260322124712.png)
+
+visto los resultados vamos a añadir la redirección al hosts
+![Pasted_image_20260322124756.png](Pasted_image_20260322124756.png)
+
+vamos a ver la web que parece el punto por el que explotar esta máquina:
+![Pasted_image_20260322124908.png](Pasted_image_20260322124908.png)
+![Pasted_image_20260322124941.png](Pasted_image_20260322124941.png)
+el código fuente parece muy normal, vamos a explorar las subpáginas, hiperlinks, hovering...
+la subpágina de login parece ser lo único por lo que explorar porque el otro botón con acción simplemente te redirige a mandar un mail a un correo concreto que es: `info@securevision.com`
+
+login:
+![Pasted_image_20260322125324.png](Pasted_image_20260322125324.png)
+
+lo primero, qué es esto de _zoneminder_? tendrá vulnerabilidades? --> ZoneMinder es un software gratis, y de código abierto para el seguimiento a través de circuito cerrado de televisión - Está diseñado para ejecutarse en distribuciones de Linux que soporten la interfaz Video For Linux y publicado bajo los términos de la Licencia Pública General de GNU.
+Cómo sabemos la versión para saber si es vulnerable? 
+![Pasted_image_20260322125548.png](Pasted_image_20260322125548.png)
+![Pasted_image_20260322125415.png](Pasted_image_20260322125415.png)
+
+Cómo no tengo muy claro cómo encontrar la versión vamos a probar con los credenciales por defecto:
+![Pasted_image_20260322125622.png](Pasted_image_20260322125622.png)
+![Pasted_image_20260322125633.png](Pasted_image_20260322125633.png)
+Conseguimos entrar como admin:admin y ahora sí tenemos más pestañas, acciones y la versión que es la v1.37.63
+sabiendo la versión busqué posibles vulns relacionadas y una que me llamó la atención es: 
+![Pasted_image_20260322131331.png](Pasted_image_20260322131331.png)
+pero probando parecía no funcionar:
+![Pasted_image_20260322131400.png](Pasted_image_20260322131400.png)
+![Pasted_image_20260322131413.png](Pasted_image_20260322131413.png)
+
+Pese a que no funciona vamos a darle otro try de otra manera, porque después de haber indagado en todas las subpáginas y opciones parece difícil creer que vaya por algo de ahí, me llama más intentar seguir con esto, es un patron de máquina más habitual
+![Pasted_image_20260322134704.png](Pasted_image_20260322134704.png)
+
+Con ayuda de gemini para que la query de sqlmap funcione bien vemos resultados, parece que es el camino a seguir:
+![Pasted_image_20260322132803.png](Pasted_image_20260322132803.png)![Pasted_image_20260322133549.png](Pasted_image_20260322133549.png)
+
+vamos a ver qué tablas existen, aunque en vista de que tardaban muuuuuucho porque eran muuuuuchas me la jugué a que existiría una Users, que efectivamente existía:
+```bash
+# Primero sacar las tablas:
+sqlmap -u 'http://cctv.htb/zm/index.php?view=request&request=event&action=removetag&tid=1' --cookie="ZMSESSID=5c347ng97vsv7cn75a031fojm2" --tables -D "zm"
+
+# Segundo las columnas de las tablas que nos interesen, en esta caso Users:
+sqlmap -u 'http://cctv.htb/zm/index.php?view=request&request=event&action=removetag&tid=1' --cookie="ZMSESSID=5c347ng97vsv7cn75a031fojm2" -T "Users" -D "zm" --columns
+
+# Tercero valores de tabla y columnas
+sqlmap -u 'http://cctv.htb/zm/index.php?view=request&request=event&action=removetag&tid=1' --cookie="ZMSESSID=5c347ng97vsv7cn75a031fojm2" -D "zm" -T "Users" -C "Username,Password,Email" --dump
+```
+
+![Pasted_image_20260323171753.png](Pasted_image_20260323171753.png)
+
+
+![Pasted_image_20260323171910.png](Pasted_image_20260323171910.png)
+
+Lo mismo a nivel de campos, había bastantes, así que jugándome a que existen los típicos username, password y email vamos a sacar los valores, que van a tardar rato:
+
+![Pasted_image_20260324162904.png](Pasted_image_20260324162904.png)
+![Pasted_image_20260323172712.png](Pasted_image_20260323172712.png)
+![Pasted_image_20260323172704.png](Pasted_image_20260323172704.png)
+![Pasted_image_20260324140219.png](Pasted_image_20260324140219.png)
+
+![Pasted_image_20260324161426.png](Pasted_image_20260324161426.png)
+![Pasted_image_20260324161408.png](Pasted_image_20260324161408.png)
+![Pasted_image_20260324161523.png](Pasted_image_20260324161523.png)
+
+ahora tenemos que encontrar las flags, primero la de user, que no parece estar en el home del usuario que hemos conseguido:
+![Pasted_image_20260324161826.png](Pasted_image_20260324161826.png)
+
+en vista de que no está ahí vamos a ver qué más usuarios existen por si hay que migrar o tenemos acceso ya a sus ficheros o lo que sea:
+![Pasted_image_20260324161748.png](Pasted_image_20260324161748.png)
+
+ese usuario sa_mark pinta a ser la continuación ya que no tenemos acceso a su home
+![Pasted_image_20260324161940.png](Pasted_image_20260324161940.png)
+
+vamos a ver entonces con linepeas qué cositas podemos hacer:
+
+en vista de que no nos ha dado muchas pistas vamos a enumerar manualmente y buscar sobre todo qué de lo enumerado puede ser útil
+despúes de ir probando lo que dice la biblio hacktricks llegamos al apartado de red y puertos abiertos y vemos igual que salía en linpeas que hay bastantes y raros, no son los más comunes, pero qué son estos puertos?
+
+{/* ![1048](Pasted%20image%2020260324171508.png) */}
+![Pasted_image_20260324171637.png](Pasted_image_20260324171637.png)
+
+Según gemini:
+Como experto en ciberseguridad, analizar estos puertos es fundamental para entender la **superficie de ataque** y las posibles **vías de escalada**. Tienes una mezcla de servicios estándar y servicios muy específicos que encajan perfectamente con un entorno de videovigilancia o streaming.
+
+Aquí tienes el desglose técnico de cada puerto:
+
+### 1. Servicios Expuestos (Accesibles desde fuera)
+
+- **0.0.0.0:22 / [::]:22 (SSH)**: El puerto estándar para administración remota segura. Al estar en `0.0.0.0`, significa que cualquiera con conexión a la IP de la máquina puede intentar autenticarse.
+- ***:80 (HTTP)**: Servidor web (Apache/Nginx). Es donde probablemente corre el panel de ZoneMinder o la web principal.
+- **0.0.0.0:68 (DHCP)**: Es el cliente DHCP. Se utiliza para que la máquina obtenga su dirección IP automáticamente de la red.
+---
+### 2. Servicios de Video y Streaming (Los más críticos aquí)
+Estos puertos son el "corazón" de un sistema de cámaras y suelen ser vectores de ataque interesantes si no tienen contraseña:
+- **127.0.0.1:1935 (RTMP)**: _Real-Time Messaging Protocol_. Originalmente de Macromedia/Adobe. Se usa para transmitir audio, video y datos. Es el estándar para enviar video hacia servidores de streaming (como YouTube o Twitch). 
+- **127.0.0.1:8554 (RTSP)**: _Real Time Streaming Protocol_. **Este es el puerto clave.** Es el protocolo que utilizan casi todas las cámaras IP y servidores como VLC o FFmpeg para servir el flujo de video en tiempo real.
+    - _Tip de Pentester:_ A menudo, si entras por aquí, puedes ver las cámaras sin ser administrador del panel web.
+---
+### 3. Bases de Datos
+- **127.0.0.1:3306 (MySQL/MariaDB)**: El puerto estándar de la base de datos.
+- **127.0.0.1:33060 (MySQL X DevAPI)**: Una extensión moderna de MySQL para manejar datos tipo documento (JSON) y conexiones más eficientes.
+---
+### 4. Puertos de Infraestructura y Red
+- **127.0.0.53:53 / 127.0.0.54:53 (DNS)**: Son resolutores DNS locales (probablemente `systemd-resolved`). Gestionan cómo la máquina traduce nombres de dominio (como https://www.google.com/search?q=google.com) a IPs.
+---
+### 5. Puertos "No Estándar" (Posibles Apps Custom)
+Estos puertos suelen pertenecer a servicios específicos de la máquina o aplicaciones en desarrollo:
+- **127.0.0.1:8888**: Muy común en aplicaciones **Jupyter Notebook**, paneles de control de **Tornado**, o proxies de desarrollo.
+- **127.0.0.1:8765**: A menudo usado por servidores de **WebSockets** en Python.
+- **127.0.0.1:7999**: Podría ser un servicio de monitorización o una API interna.
+- **127.0.0.1:9081**: Puerto común para servidores de aplicaciones (como **IBM WebSphere** o microservicios personalizados).
+---
+### Estrategia de Pentesting (OSCP Mindset)
+Como todos estos puertos (excepto el 22 y 80) están en `127.0.0.1`, el servidor considera que son "seguros" porque solo él puede hablar consigo mismo. Tu objetivo es romper esa confianza.
+1. **Local Port Forwarding (SSH)**: Si ya tienes acceso como el usuario `mark`, tráete los puertos a tu máquina local para ver qué hay en las webs internas. __OJO --> esto se ejecuta en MI MÁQUINA porque sino no tengo acceso, no en la consola de ssh de mark__:
+    ```bash
+    ssh -L 8888:127.0.0.1:8888 mark@cctv.htb
+    ```
+2. **Enumeración de Video**: Usa `nmap` desde dentro de la máquina para ver qué software corre en el 8554:
+    ```bash
+    nmap -sV -p 8554 127.0.0.1
+    ```
+3. **Credential Hunting**: Busca en los archivos de configuración de la web (en `/var/www/html/` o `/etc/zm/`) las contraseñas para entrar al MySQL (3306).
+
+---
+---
+---
+de todo lo más útil parece ser lo del local port forwarding porque nmap no podemos usarlo sobre la ssh de mark y las bases de datos es realmente lo que hicimos con el sqlmap como entrada para conseguir la sesión ssh.
+Así que vamos a ir probando cada puerto a ver qué conseguimos:
+- puerto 1935:
+	- ![Pasted_image_20260324172056.png](Pasted_image_20260324172056.png)
+	- ![Pasted_image_20260324172103.png](Pasted_image_20260324172103.png)
+ 
+ - puerto 7999:
+	 - ![Pasted_image_20260324172156.png](Pasted_image_20260324172156.png)
+	 - ![Pasted_image_20260324172232.png](Pasted_image_20260324172232.png)
+- puerto 8554:
+	- ![Pasted_image_20260324172629.png](Pasted_image_20260324172629.png)
+	- ![Pasted_image_20260324172731.png](Pasted_image_20260324172731.png)
+- puerto 8765
+	- ![Pasted_image_20260324172804.png](Pasted_image_20260324172804.png)
+	- ![Pasted_image_20260324172817.png](Pasted_image_20260324172817.png)
+	este puerto concretamente si que parece tener algo así que vamos a ver qué conseguimos antes de seguir con el resto.
+	no sé las credenciales, no veo exploits, no funcionan las defaults, así que cómo busco en la sesión ssh de mark por información útil para esto.
+	Es un servicio, así que en /etc debe haber alguna carpeta y quizás haya archivos de configuración:	
+	![Pasted_image_20260324174208.png](Pasted_image_20260324174208.png)
+	![Pasted_image_20260324174347.png](Pasted_image_20260324174347.png)
+	ahora bien, una vez dentro, qué cojones hacemos? yo supongo que de alguna manera podremos ya conseguir la flag, por ende hay que tirarse una reverse shell de alguna forma y eso necesita un RCE, así que vamos a buscar vulns de este software a ver qué hay:
+	![Pasted_image_20260324174909.png](Pasted_image_20260324174909.png)
+	
+	visto esto a ver qué versión tenemos y cómo mirarlo, toqueteemos:
+	![Pasted_image_20260324174737.png](Pasted_image_20260324174737.png)
+	![Pasted_image_20260324175212.png](Pasted_image_20260324175212.png)
+	tras revisar el script era un .txt que enseñaba el PoC paso a paso, así que antes de nada decidí intentar buscar algún script que lo automatizara y efectivamente encontré un repo que tenía lo que quería, funcionaba y nos dio la solución: 
+	![Pasted_image_20260324175706.png](Pasted_image_20260324175706.png)
+	![Pasted_image_20260324175913.png](Pasted_image_20260324175913.png)
+	![Pasted_image_20260324175930.png](Pasted_image_20260324175930.png)
+	![Pasted_image_20260324175939.png](Pasted_image_20260324175939.png)
+	![Pasted_image_20260324180042.png](Pasted_image_20260324180042.png)

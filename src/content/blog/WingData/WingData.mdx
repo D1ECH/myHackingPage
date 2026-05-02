@@ -1,0 +1,60 @@
+---
+title: "Wingdata Writeup - HackTheBox"
+publishDate: "2026-04-30"
+#updatedDate: '2025-07-10'
+description: 'Writeup del laboratorio Wingdata de HackTheBox'
+tags:
+  - Writeup
+  - HackTheBox
+  - Offsec
+  - Hacking
+  - Linux
+language: 'Spanish'
+draft: true
+---
+
+nmap 
+![Pasted_image_20260428132325.png](Pasted_image_20260428132325.png)
+![Pasted_image_20260428132338.png](Pasted_image_20260428132338.png)
+
+visto lo visto veamos la web:
+![Pasted_image_20260428132436.png](Pasted_image_20260428132436.png)
+lo primero que podría llamar la atención de la página era la navbar, por ver si nos redirecciona a otras páginas, a secciones o lo que sea y dentro de esta destacar la sección de contacto que tenía el típico formulario y podría ser útil para XSS y sobre todo y por donde vamos a empezar a investigar esa sección _Client Portal_ que nos mandaba a un subdominio ``ftp.wingdata.htb``
+![Pasted_image_20260428132659.png](Pasted_image_20260428132659.png)
+![Pasted_image_20260428132720.png](Pasted_image_20260428132720.png)
+![Pasted_image_20260428132728.png](Pasted_image_20260428132728.png)
+tal y como vemos se indica un software y una versión y quizás podemos encontrar vulnerabilidades asociadas, vamos a buscar:
+![Pasted_image_20260428132825.png](Pasted_image_20260428132825.png)
+parece que existe un RCE sin autenticación para esta versión así que vamos a por ello, pinta bien:
+![Pasted_image_20260428132918.png](Pasted_image_20260428132918.png)
+![Pasted_image_20260428132956.png](Pasted_image_20260428132956.png)
+![Pasted_image_20260428133028.png](Pasted_image_20260428133028.png)
+
+es vulnerable, a ver entonces si podemos ejecutar comandos, que parece que sí:
+![Pasted_image_20260428133424.png](Pasted_image_20260428133424.png)
+pues visto esto vamos a lanzarnos una reverse shell
+![Pasted_image_20260428133228.png](Pasted_image_20260428133228.png)
+probé con la clásica y no funcionaba, probé entonces con la de mkfifo y tampoco y tuve el darmecuenta de que estábamos enviando esta información en peticiones POST, así que quizás faltaba urlencodearla 
+![Pasted_image_20260428133354.png](Pasted_image_20260428133354.png)
+con la bash de mkfifo urlencoded si que funcionó, ahora tenemos una reverse shell vamos a por las flags:
+![Pasted_image_20260428133615.png](Pasted_image_20260428133615.png)
+no parece que desde este user podemos leer la flag, así que toca primero investigar qué más usuarios existen, qué permisos tenemos en este y cómo podemos migrar
+![Pasted_image_20260428133727.png](Pasted_image_20260428133727.png)
+![Pasted_image_20260428133822.png](Pasted_image_20260428133822.png)
+
+vale, en vista de que el usuario que tenemos no tiene grandes acciones ni grupos raros, ni si quiera tiene una carpeta home asignada voy a pensar que lo que haya que hacer debe estar en la carpeta donde aparecimos al spawnear la reverse shell, al carpeta del servicio, así que de alguna manera debe haber credenciales o algo con lo que migrar de usuario, así que vamos a buscar:
+mirando un poco por encima encuentro esto, que parece el hash de un admin, e intento averiguar el tipo de hash que es y crackearlo.
+Según hash-identifier era un sha256, aunque ahora bien, qué formato es este en hashcat? tiene salt? hmac? hay que investigarlo:
+![Pasted_image_20260428140126.png](Pasted_image_20260428140126.png)
+![Pasted_image_20260428140050.png](Pasted_image_20260428140050.png)
+probando sin salt parece que no funciona, pero si tuviera salt cuál sería?
+además, quizás sea porque es la pass de admin y no podemos crackearla, habrá alguna otra? --> 
+![Pasted_image_20260428163602.png](Pasted_image_20260428163602.png)
+![Pasted_image_20260428163521.png](Pasted_image_20260428163521.png)
+
+investigando un poco en la propia documentación del software vemos que las contraseñas tienen encriptación sha256 y la posibilidad de tener un salt que tal y como la aparece en la imagen parece que de forma predeterminada podría ser WingFTP --> así que si guardamos ahora los hashes que tenemos con este formato hash:salt podemos probar también formatos de hashcat como 1410 o 1420 (salt:hash) para ver si no funciona con 1400 y con esas opciones sí:
+![Pasted_image_20260428164140.png](Pasted_image_20260428164140.png)
+
+![Pasted_image_20260428162900.png](Pasted_image_20260428162900.png)
+![Pasted_image_20260428163816.png](Pasted_image_20260428163816.png)
+![Pasted_image_20260428163846.png](Pasted_image_20260428163846.png)

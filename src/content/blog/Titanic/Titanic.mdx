@@ -1,0 +1,59 @@
+---
+title: "Titanic Writeup - HackTheBox"
+publishDate: "2026-04-30"
+#updatedDate: '2025-07-10'
+description: 'Writeup del laboratorio Titanic de HackTheBox'
+tags:
+  - Writeup
+  - HackTheBox
+  - Offsec
+  - Hacking
+  - Linux
+language: 'Spanish'
+draft: true
+---
+
+#
+##
+
+nmap 
+![Pasted_image_20260107203129.png](Pasted_image_20260107203129.png)
+![Pasted_image_20260107203143.png](Pasted_image_20260107203143.png)
+
+
+### Web
+para acceder a la web --> ![Pasted_image_20260107203201.png](Pasted_image_20260107203201.png) (pero con la ip correcta que tuve que cambiarla varias veces)
+ahora bien, la web cómo es, enumeración
+![Pasted_image_20260107203246.png](Pasted_image_20260107203246.png)
+la única de las opciones así de botones y demás que parece tener algo de contenido es la de "book trip" o similares que te despliega esto --> ![Pasted_image_20260107203345.png](Pasted_image_20260107203345.png)
+![Pasted_image_20260107203453.png](Pasted_image_20260107203453.png)
+al rellenar los datos genera un json para descargar: ![Pasted_image_20260107203534.png](Pasted_image_20260107203534.png)
+se estará procesando algo por detrás que no sepamos? **Burpsuite** --> ![Pasted_image_20260107203804.png](Pasted_image_20260107203804.png)
+siguiendo el redirect --> ![Pasted_image_20260107203825.png](Pasted_image_20260107203825.png)
+si probamos a quitar los campos de la petición también se crea y funciona el proceso, lo cual no sé si es relevante pero al menos es curioso: 
+- ![Pasted_image_20260107204023.png](Pasted_image_20260107204023.png)
+- ![Pasted_image_20260107204040.png](Pasted_image_20260107204040.png)
+
+no parece que haya mucha más chicha en esta página y el form ese no tiene pinta de dar mucho juego, así que vamos a investigar posibles subdirectorios
+- encontramos el de book que es del que tira para hacer el form ese que hemos visto
+- pero no parece que haya más subdirectorios
+
+Lo siguiente a mirar entonces es subdominios: ![Pasted_image_20260107210748.png](Pasted_image_20260107210748.png)
+encontramos uno de desarrollo, pinta que es el camino, lo añadimos también al /etc/hosts y a ver qué nos muestra esta nueva web: ![Pasted_image_20260107210950.png](Pasted_image_20260107210950.png)
+![Pasted_image_20260107211012.png](Pasted_image_20260107211012.png)
+![Pasted_image_20260107211041.png](Pasted_image_20260107211041.png)
+
+no parece que la versión en sí misma sea la vía para entrar a la máquina víctima pero tenemos esa html injection que habrá que investigar. Sigamos explorando
+![Pasted_image_20260107211146.png](Pasted_image_20260107211146.png)
+![Pasted_image_20260107211153.png](Pasted_image_20260107211153.png)
+![Pasted_image_20260107211215.png](Pasted_image_20260107211215.png)
+
+exploremos los proyectos un poco más
+![Pasted_image_20260107211400.png](Pasted_image_20260107211400.png)
+![Pasted_image_20260107211413.png](Pasted_image_20260107211413.png)
+![Pasted_image_20260107211428.png](Pasted_image_20260107211428.png)
+revisando todos los commits el más interesante es el de mysql que contiene credenciales que pueden ser útiles, quizás para reutilizar en el ssh o internamente en la máuqina para acceder a la base de datos que haya
+
+Con respecto a la otra app que había vemos que está relacionada con el form que habíamos rellenado en al página de titanic, así que quizás haya información interesante de nuevo en los commits, versiones y tecnologías o en el propio código de la app
+![Pasted_image_20260107211608.png](Pasted_image_20260107211608.png)
+

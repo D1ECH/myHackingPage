@@ -1,0 +1,67 @@
+---
+title: "Kobold Writeup - HackTheBox"
+publishDate: "2026-04-30"
+#updatedDate: '2025-07-10'
+description: 'Writeup del laboratorio Kobold de HackTheBox'
+tags:
+  - Writeup
+  - HackTheBox
+  - Offsec
+  - Hacking
+  - Linux
+language: 'Spanish'
+draft: true
+---
+
+nmap
+![Pasted_image_20260407115914.png](Pasted_image_20260407115914.png)
+![Pasted_image_20260407115929.png](Pasted_image_20260407115929.png)
+
+página web --> el puerto 80 redirige al 443 y la web que se muestra es la siguiente:
+![Pasted_image_20260407120105.png](Pasted_image_20260407120105.png)
+![Pasted_image_20260407120120.png](Pasted_image_20260407120120.png)
+
+no hay nada destacable en el código fuente ni links a subpáginas u otros dominios.
+Vamos entonces a explorar otro de los puertos/servicios expuestos a ver qué podemos conseguir, en este caso el puerto 3552 --> la página que se muestra es la siguinete (cuidado que no es https)
+![Pasted_image_20260407120348.png](Pasted_image_20260407120348.png)
+vemos importante que es un software llamado arcane, que hay un enlace para ver el proyecto en github (probablemente de este software) y una versión que nos puede orientar o dar pistas de cara a buscar posibles vulnerabilidades para esta
+![Pasted_image_20260407120954.png](Pasted_image_20260407120954.png)
+![Pasted_image_20260407121250.png](Pasted_image_20260407121250.png)
+![Pasted_image_20260407123029.png](Pasted_image_20260407123029.png)
+![Pasted_image_20260407123321.png](Pasted_image_20260407123321.png)
+![Pasted_image_20260407123342.png](Pasted_image_20260407123342.png)
+![Pasted_image_20260407123629.png](Pasted_image_20260407123629.png)
+![Pasted_image_20260407123645.png](Pasted_image_20260407123645.png)
+se me ha olvidado sacar capturas pero he probado con el intruder de burpsuite esta vulnerabilidad, pero no parece que encuentre nada, así que ahora ando un poco más perdido
+![Pasted_image_20260407191730.png](Pasted_image_20260407191730.png)
+![Pasted_image_20260407193211.png](Pasted_image_20260407193211.png)![Pasted_image_20260416181507.png](Pasted_image_20260416181507.png)
+ojito con estos dos nuevos subdominios, vamos a añadirlos al /etc/hosts y ver qué hay en ellos
+
+> [!warning] 
+> el escaneo de directorios y subdominios es para TOOOOOODOS LOS PUERTOS, 80 Y 443 SON DOS DISTINTOS Y PUEDEN DAR DISTINTOS RESULTADO
+
+![Pasted_image_20260418204549.png](Pasted_image_20260418204549.png)
+![Pasted_image_20260418204626.png](Pasted_image_20260418204626.png)
+
+ahora bien, por dónde tiramos? vamos a ver qué vulnerabilidades existen para cada software:
+- privatebin, para esta versión:
+	![Pasted_image_20260418204830.png](Pasted_image_20260418204830.png)
+	![Pasted_image_20260418205011.png](Pasted_image_20260418205011.png)
+- mcpjam:
+	{/* ![1136](Pasted%20image%2020260418204911.png) */}
+
+visto lo visto eso de conseguir un RCE llama la atención más que las otras posibilidades, así que probemos con **MCPJam**, además viendo que hay repos de github con exploits.
+
+![Pasted_image_20260418205349.png](Pasted_image_20260418205349.png)
+![Pasted_image_20260418205402.png](Pasted_image_20260418205402.png)
+![Pasted_image_20260418205424.png](Pasted_image_20260418205424.png)
+![Pasted_image_20260418205443.png](Pasted_image_20260418205443.png)
+![Pasted_image_20260418205507.png](Pasted_image_20260418205507.png)
+![Pasted_image_20260418205544.png](Pasted_image_20260418205544.png)
+![Pasted_image_20260418205601.png](Pasted_image_20260418205601.png)
+
+añadimos los permisos al script, que no se ve en la foto pero sería con el comando `chmod +x linpeas.sh` y lo ejecutamos
+![Pasted_image_20260418205749.png](Pasted_image_20260418205749.png)
+esto me llama la atención, habrá que investigarlo
+![Pasted_image_20260418205811.png](Pasted_image_20260418205811.png)
+hay un tercer usuario por lo que parece, así que a lo mejor hay que saltar antes a ese user para conseguir luego el root

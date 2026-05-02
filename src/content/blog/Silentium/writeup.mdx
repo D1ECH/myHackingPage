@@ -1,0 +1,125 @@
+---
+title: 'Silentium Writeup - HackTheBox'
+publishDate: '2025-07-03'
+#updatedDate: '2025-07-10'
+description: 'Writeup del laboratorio Silentium de HackTheBox'
+tags:
+  - Writeup
+  - HackTheBox
+  - Offsec
+  - Hacking
+  - Linux
+language: 'Spanish'
+draft: true
+---
+{/* 
+nmap
+![](Pasted%20image%2020260422115133.png)
+![](Pasted%20image%2020260422115402.png)
+![](Pasted%20image%2020260422115422.png)
+![](Pasted%20image%2020260422115539.png)
+
+vamos entonces a ver la web, y el puerto ese raro qué sera?
+
+web
+![](Pasted%20image%2020260422115719.png)
+a priori el código fuente no parece que sea raro, en sí mismo la web no parece tener muchas funciones.
+![](Pasted%20image%2020260422115822.png)
+he estado haciendo hovering y no encuentro nada llamativo, la calculadora esta tampoco parece muy allá al menos a simple vista y el resto de web son solo cuadros de texto, así que va a tocar indagar en directorios y subdominios a ver si hubiera algo.
+El servidor es nginx 1.24, versión que tampoco parece tener vulnerabilidades comunes
+![](Pasted%20image%2020260422120029.png)
+
+no parece haber subdirectorios
+![](Pasted%20image%2020260422120501.png)
+pero sin embargo si hemos encontrado un subdominio:
+![](Pasted%20image%2020260422120522.png)
+
+he visto la página y el software que se utiliza pero no sé la versión, aunque hay vulnerabilidades conocidas, así que vamos a probar
+![](Pasted%20image%2020260422121336.png)
+![](Pasted%20image%2020260422121320.png)
+
+vale, antes de nada he probado si existía la posibilidad de registrarse y efectivamente sí hay un directorio ``/register``, a ver si conseguimos entrar de esta forma antes de probar scripts y quizás obtener así la versión
+![](Pasted%20image%2020260422124339.png)
+![](Pasted%20image%2020260422124418.png)
+![](Pasted%20image%2020260422124433.png)
+![](Pasted%20image%2020260422125144.png)
+![](Pasted%20image%2020260422124016.png)
+que pasa, para todas las vulnerabilidades de esta versión, hace falta entrar de alguna forma, conocer un usuario y yo en principio no sé nada, pero si que conocemos al equipo y el nombre de la empresa, lo que me lleva a pensar que no sería raro un email tipo <nombre_miembro>@silentium.htb
+El miembro que quizás sea más susceptible a esto es Ben, por ser un nombre tan sencillo, así que vamos a probar
+![](Pasted%20image%2020260422130407.png)
+efectivamente ahora sabemos un nombre, y hay una vulnerabilidad que nos permite cambiarle la contraseña desde el forgot_password --> CVE-2025-58434 - Account Takeover
+así que vamos a hacer eso, utilizar los credenciales para el --> CVE-2025-59528 — Remote Code Execution
+
+![](Pasted%20image%2020260422130549.png)
+![](Pasted%20image%2020260422130656.png)
+
+he encontrado este repo en github con un script para hacer todo el ciclo --> conseguir el token, cambiar contraseña y conseguir RCE ya que tenemos método de autenticación --> https://github.com/kartik2005221/CVE-2025-58434-AND-59528-POC.git
+
+![](Pasted%20image%2020260424115128.png)
+
+![](Pasted%20image%2020260424115403.png)
+![](Pasted%20image%2020260424115415.png)
+![](Pasted%20image%2020260424115427.png)
+
+![](Pasted%20image%2020260424120252.png)
+
+hemos entrado, pero dónde? porque como root directamente es raro y más si no hay ningún archivo user.txt ni root.txt --> 
+![](Pasted%20image%2020260424120336.png)
+
+a decir verdad le he pasado lo que reportaba el comando ``env`` a gemini y me ha dicho que parece que estamos en un contenedor, he tirado linpeas y no ha sido muy útil porque dentro de este contenedor ya somos root y también he tirado una herramienta para enumeración de contenedores --> deepce.sh
+
+![](Pasted%20image%2020260424121749.png)
+![](Pasted%20image%2020260424121807.png)
+![](Pasted%20image%2020260424121614.png)
+![](Pasted%20image%2020260424121829.png)
+![](Pasted%20image%2020260424121848.png)
+
+así que siguiendo el consejo de gemini vamos a primeramente reutilizar credenciales como los que había en `env` --> 
+![](Pasted%20image%2020260424121930.png)
+![](Pasted%20image%2020260424121939.png)
+ha funcionado, ahora toca escalar privilegios
+para esto como siempre tiramos en la máquina de linpeas, pero la verdad que no parecía haber grandes cosas llamativas, únicamente los puertos abiertos, un grupo del usuario y poco más, ni más users ni archivos raros EN PRINCIPIO.
+
+![](Pasted%20image%2020260426114548.png)
+
+centrándonos en los puertos fui explorando a ver qué servicios existían: `curl -v 127.0.0.1:puerto`
+
+![](Pasted%20image%2020260426114514.png)
+
+algunos no reportaban nada, otros sí, como el 8025 - mailhog, 3000 - flowise...
+
+pero el más llamativo fue el 3001 --> 
+![](Pasted%20image%2020260426114840.png)
+
+lo abrí en mi máquina local con un forward para ver de qué se trataba y encontré la siguiente página:
+![](Pasted%20image%2020260426114915.png)
+![](Pasted%20image%2020260426114945.png)
+
+en la página estaba registrado ben, pero no se podía iniciar sesión con las mismas creds que en la sesión ssh
+![](Pasted%20image%2020260426115039.png)
+![](Pasted%20image%2020260426115127.png)
+
+así que vamos a ver si podemos crear un user y entrar por ver si averiguamos la versión del software o alguna movida que nos lleve a alguna posible vulnerabilidad
+![](Pasted%20image%2020260426115216.png)
+![](Pasted%20image%2020260426115322.png)
+ya una vez dentro vamos a investigar
+no parece que haya ningún sitio donde ponga la versión, y buscando en los propios archivos del servicio tampoco lo veo, así que va a tocar probar con vulnerabilidades conocidas a ver si da la casualidad de que alguna cuela:
+![](Pasted%20image%2020260426122230.png)
+![](Pasted%20image%2020260426122244.png)
+![](Pasted%20image%2020260426122304.png)
+
+buscando, la primera vulnerabilidad y más reciente a probar es: 
+![](Pasted%20image%2020260426122357.png)
+así que vamos a buscar exploits para la misma
+![](Pasted%20image%2020260426122436.png)
+
+de todos estos probé con el primero, segundo y el cuarto de la foto, los primeros sin éxito porque creo que el tener el túnel para ver la web no me estaba permitiendo ejecutarlos correctamente, o no estaba sabiendo. Pero el cuarto estaba a medida, con instrucciones claras para usarlo:
+![](Pasted%20image%2020260426122606.png)
+creé como ponía el access token, instalé las dependencias que faltaban y ahora sí, listos para ejecutar el exploit a ver si funciona:
+![](Pasted%20image%2020260426122104.png)
+![](Pasted%20image%2020260426122650.png)
+token --> 92ebc9ff886d45a1d386d126d71ea48a18f1506c
+
+![](Pasted%20image%2020260426122812.png)
+![](Pasted%20image%2020260426122824.png)
+![](Pasted%20image%2020260426122841.png) */}
