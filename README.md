@@ -1,103 +1,70 @@
-# Astro Theme Pure
+# myHackingPage
 
-English | [简体中文](./README-zh-CN.md)
+English | [Español](./README-es.md)
 
-A simple, fast and powerful blog & document theme built by Astro.
+Un blog personal sobre ciberseguridad, hacking ético y CTFs construido con Astro.
 
-[![GitHub deployments](https://img.shields.io/github/deployments/cworld1/astro-theme-pure/production?style=flat&logo=vercel&label=vercel)](https://astro-pure.js.org/)
-[![NPM Version](https://img.shields.io/npm/v/astro-pure?logo=npm&style=flat)](https://www.npmjs.com/package/astro-pure)
-[![GitHub Release](https://img.shields.io/github/v/release/cworld1/astro-theme-pure?include_prereleases&style=flat&label=template)](https://github.com/cworld1/astro-theme-pure/releases)
-[![GitHub License](https://img.shields.io/github/license/cworld1/astro-theme-pure?style=flat)](https://github.com/cworld1/astro-theme-pure/blob/main/LICENSE)
+[![Deploy Status](https://img.shields.io/github/deployments/d1ech/myHackingPage/github-pages?style=flat&logo=github&label=deploy)](https://d1ech.github.io/myHackingPage/)
+[![Astro Pure](https://img.shields.io/badge/built%20with-astro--pure-blue?style=flat&logo=astro)](https://github.com/cworld1/astro-theme-pure)
+[![GitHub License](https://img.shields.io/github/license/d1ech/myHackingPage?style=flat)](https://github.com/d1ech/myHackingPage/blob/main/LICENSE)
 
-![image](./.github/assets/header.webp)
-![image](./.github/assets/body.webp)
+&gt; Developer / Designer / Cybersecurity
 
-> [!NOTE]
-> Known issues: 1. Header & customize options is still under development (template exposed still). 2. Theme template v4.0.5^ UnoCSS preset changed to PresetMini. If there's any problem, please report as issue.
+## 🎯 Sobre el proyecto
 
-## Introduction
+Blog personal donde comparto **writeups**, descubrimientos y proyectos sobre ciberseguridad. 
+Enfocado en hacking ético, CTFs y seguridad ofensiva.
 
-Checkout [Demo Site →](https://astro-pure.js.org/)
+🔗 [Visitar sitio →](https://d1ech.github.io/myHackingPage/)
 
-### :fire: Features
+## ✨ Contenido
 
-- [x] :rocket: Fast & high performance
-- [x] :star: Simple & clean design
-- [x] :iphone: Responsive design
-- [x] :mag: Full-site search built with [pagefind](https://pagefind.app/)
-- [x] :world_map: Sitemap & RSS feed
-- [x] :spider_web: SEO-friendly
-- [x] :book: TOC (table of contents)
-- [x] :framed_picture: Dynamic open graph generation for posts
-- [x] :framed_picture: Mediumzoom lightbox for images
+- 🏴‍☠️ **Writeups** de máquinas de HackTheBox, Proving Grounds y otros labs
+- 🛠️ **Herramientas** y scripts personalizados
+- 📚 **Guías** y recursos de aprendizaje
+- 🔍 **Análisis** de vulnerabilidades y técnicas de explotación
 
-### :package: Components
+## 🚀 Stack tecnológico
 
-Theme includes a lot of components, which can not only be used in the theme, but also in other astro projects.
+| Tecnología | Uso |
+|------------|-----|
+| [Astro](https://astro.build/) | Framework web |
+| [astro-theme-pure](https://github.com/cworld1/astro-theme-pure) | Tema base |
+| [Pagefind](https://pagefind.app/) | Búsqueda en sitio |
+| GitHub Pages | Hosting |
 
-> For other astro projects, UnoCSS is required. See [Package README](https://github.com/cworld1/astro-theme-pure/blob/main/packages/pure/README.md#use-with-common-astro-project) for more details.
+## 📝 Posts destacados
 
-- Basic components: `Aside`, `Tabs`, `Timeline`, `Steps`, `Spoiler`...
-- Advanced components: `GithubCard`, `LinkPreview`, `Quote`, `QRCode`...
+- [Facts Writeup - HackTheBox](https://d1ech.github.io/myHackingPage/posts/facts-writeup/) (Mar 2026)
+- [SoSimple Writeup - Proving Grounds](https://d1ech.github.io/myHackingPage/posts/sosimple-writeup/) (Jul 2025)
 
-### :white_check_mark: Lighthouse score
+## 🛠️ Desarrollo local
 
-[![lighthouse-score](./.github/assets/lighthouse-score.png)](https://pagespeed.web.dev/analysis/https-cworld-top/o229zrt5o4?form_factor=mobile&hl=en)
-
-## Documentation
-
-[Docs](https://astro-pure.js.org/docs) | [Showcase](https://github.com/cworld1/astro-theme-pure/issues/10)
-
-## Package
-
-See [astro-theme-pure](https://www.npmjs.com/package/astro-pure) on npm.
-
-## Local development
-
-Environment requirements:
-
-- [Nodejs](https://nodejs.org/): 18.0.0+
-
-Clone the repository:
+Requisitos:
+- [Node.js](https://nodejs.org/): 18.0.0+
 
 ```shell
-git clone https://github.com/cworld1/astro-theme-pure.git
-cd astro-theme-pure
+# Clonar repositorio
+git clone https://github.com/d1ech/myHackingPage.git
+cd myHackingPage
+
+# Instalar dependencias
+npm install
+
+# Servidor de desarrollo
+npm run dev
+
+# Construir
+npm run build
+
+# Vista previa (después del build)
+npm run preview
+
+# Crear nuevo post
+npm run new
 ```
 
-Useful commands:
+📜 Licencia
+Este proyecto está licenciado bajo la Apache 2.0 License.
 
-```shell
-# install dependencies
-bun install
-
-# start the dev server
-bun dev
-
-# build the project
-bun run build
-
-# preview (after the build)
-bun preview
-
-# create a new post
-bun new
-```
-
-## Contributions
-
-To spend more time coding and less time fiddling with whitespace, this project uses code conventions and styles to encourage consistency. Code with a consistent style is easier (and less error-prone!) to review, maintain, and understand.
-
-## Thanks
-
-- [Astro Cactus](https://github.com/chrismwilliams/astro-theme-cactus)
-- [Astro Resume](https://github.com/srleom/astro-theme-resume)
-- [Starlight](https://github.com/withastro/starlight)
-
-Other third party references are on [Docs#Contributions](https://astro-pure.js.org/docs/advanced/thanks). Appreciate for all open source libraries.
-
-## License
-
-This project is licensed under the Apache 2.0 License.
-
-[![Star History Chart](https://api.star-history.com/svg?repos=cworld1/astro-theme-pure&type=Date)](https://star-history.com/#cworld1/astro-theme-pure&Date)
+> "Siempre aprendiendo y rompiendo cosas (para luego arreglarlas mejor)."
