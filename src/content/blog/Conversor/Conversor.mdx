@@ -81,7 +81,6 @@ PORT   STATE SERVICE REASON
 Only two ports were exposed: SSH (22) and HTTP (80). The TTL of 63 suggests the target is one hop away, confirming it's a virtualized environment.
 
 ![Pasted_image_20260131182934.png](Pasted_image_20260131182934.png)
-![Pasted_image_20260131182947.png](Pasted_image_20260131182947.png)
 
 ### Service Enumeration
 A targeted service scan was executed against the identified open ports to gather version information and potential vulnerabilities.
@@ -89,6 +88,8 @@ A targeted service scan was executed against the identified open ports to gather
 ```bash
 sudo nmap -p22,80 -sCV 10.129.5.238 -oN targeted
 ```
+
+![Pasted_image_20260131182947.png](Pasted_image_20260131182947.png)
 
 **Results:**
 
@@ -462,8 +463,6 @@ bash-5.1# cat /root/root.txt
 
 
 
-
-nmap 
 
 pasamos a la web
 ![Pasted_image_20260131183012.png](Pasted_image_20260131183012.png)
