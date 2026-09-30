@@ -49,7 +49,8 @@ export default defineConfig({
     responsiveStyles: true,
     service: {
       entrypoint: 'astro/assets/services/sharp'
-    }
+    },
+    domains: ['ghchart.rshah.org'],
   },
 
   integrations: [
